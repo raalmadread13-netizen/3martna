@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "عمارتنا | 3martna",
+    "slug": "3martna",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "martna",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "jo.martna.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera access is needed to scan visitor QR codes and attach photos to maintenance requests.",
+        "NSLocationWhenInUseUsageDescription": "Location is used for technician check-in at the work site.",
+        "NSFaceIDUsageDescription": "Face ID is used for quick and secure login."
+      }
+    },
+    "android": {
+      "package": "jo.martna.app",
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F172A"
+      },
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-localization",
+      [
+        "expo-notifications",
+        { "icon": "./assets/notification-icon.png", "color": "#C8A24B" }
+      ],
+      [
+        "expo-camera",
+        { "cameraPermission": "Allow 3martna to access the camera to scan QR codes and attach photos." }
+      ],
+      [
+        "expo-location",
+        { "locationWhenInUsePermission": "Allow 3martna to use your location for on-site check-in." }
+      ]
+    ],
+    "extra": {
+      "eas": { "projectId": "REPLACE_WITH_EAS_PROJECT_ID" }
+    }
+  }
+}
