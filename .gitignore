@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Environment — never commit secrets
+.env
+.env.local
+.env.*.local
+*.pem
+serviceAccountKey.json
+google-services.json
+GoogleService-Info.plist
+
+# Builds
+dist/
+build/
+web-build/
+*.apk
+*.aab
+*.ipa
+
+# Expo
+.expo/
+.expo-shared/
+expo-env.d.ts
+
+# Logs & coverage
+logs/
+*.log
+coverage/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# TypeScript
+*.tsbuildinfo

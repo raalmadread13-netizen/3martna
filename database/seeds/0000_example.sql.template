@@ -1,0 +1,11 @@
+/* ============================================================
+   TEMPLATE — copy to NNNN_description.sql (four-digit prefix).
+   Seeds run in order on every `npm run db:seed`, so every
+   statement MUST be idempotent.
+   ============================================================ */
+
+-- Example structure (do not apply):
+--
+-- IF NOT EXISTS (SELECT 1 FROM dbo.Example WHERE Name = N'Sample')
+--     INSERT INTO dbo.Example (Name) VALUES (N'Sample');
+-- GO

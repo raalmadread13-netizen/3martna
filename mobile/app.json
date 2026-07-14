@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "عمارتنا | 3martna",
+    "slug": "3martna",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "martna",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "jo.martna.app"
+    },
+    "android": {
+      "package": "jo.martna.app"
+    },
+    "plugins": ["expo-secure-store"],
+    "extra": {
+      "eas": { "projectId": "REPLACE_WITH_EAS_PROJECT_ID" }
+    }
+  }
+}

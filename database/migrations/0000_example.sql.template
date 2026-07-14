@@ -1,0 +1,16 @@
+/* ============================================================
+   TEMPLATE — copy to NNNN_description.sql (four-digit prefix).
+   Applied migrations are immutable: never edit, always add.
+   The runner wraps each file in a transaction and records it
+   in dbo._MigrationsHistory.
+   ============================================================ */
+
+-- Example structure (do not apply):
+--
+-- CREATE TABLE dbo.Example (
+--     ExampleId INT IDENTITY(1,1) NOT NULL,
+--     Name      NVARCHAR(150) NOT NULL,
+--     CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Example_CreatedAt DEFAULT SYSUTCDATETIME(),
+--     CONSTRAINT PK_Example PRIMARY KEY (ExampleId)
+-- );
+-- GO
