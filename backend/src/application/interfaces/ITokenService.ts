@@ -3,8 +3,12 @@ export interface AccessTokenPayload {
   sub: number;
   /** Display name (for logs/telemetry, not authorization). */
   name: string;
-  /** Role names used by the authorization middleware. */
+  /** Role names. */
   roles: string[];
+  /** Database-driven permission codes resolved at issue time. */
+  permissions: string[];
+  /** Multi-tenant readiness — null until the Tenants feature lands. */
+  tenantId: number | null;
 }
 
 export interface RefreshTokenBundle {

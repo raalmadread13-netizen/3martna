@@ -25,6 +25,11 @@ No secrets are committed anywhere in this repository. Templates live at
 | `JWT_REFRESH_EXPIRES_DAYS` | – | `30` | Refresh-token lifetime |
 | `RATE_LIMIT_WINDOW_MINUTES` | – | `15` | Rate-limit window |
 | `RATE_LIMIT_MAX` | – | `300` | Requests per window per IP |
+| `AUTH_RATE_LIMIT_MAX` | – | `10` | Failed credential attempts per window per IP (login/register/forgot/reset) |
+| `AUTH_MAX_FAILED_LOGINS` | – | `5` | Failed logins before a temporary account lockout |
+| `AUTH_LOCKOUT_MINUTES` | – | `15` | Lockout duration |
+| `AUTH_VERIFICATION_TTL_MINUTES` | – | `10` | Email/phone verification code lifetime |
+| `AUTH_RESET_TTL_MINUTES` | – | `60` | Password-reset code lifetime |
 | `FIREBASE_SERVICE_ACCOUNT` | – | *(empty)* | Full service-account JSON, one line. Empty = Firebase disabled |
 | `FIREBASE_STORAGE_BUCKET` | with FB | – | `your-project.appspot.com` |
 | `FIREBASE_DATABASE_URL` | with FB | – | Realtime Database URL |

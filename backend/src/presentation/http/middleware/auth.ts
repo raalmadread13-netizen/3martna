@@ -6,6 +6,9 @@ export interface AuthenticatedUser {
   userId: number;
   fullName: string;
   roles: string[];
+  /** Database-driven permission codes resolved when the token was issued. */
+  permissions: string[];
+  tenantId: number | null;
 }
 
 declare global {
@@ -17,10 +20,7 @@ declare global {
   }
 }
 
-/**
- * JWT authentication structure — ready for the auth feature sprint.
- * Requires a valid Bearer access token and attaches req.user.
- */
+/** Requires a valid Bearer access token and attaches req.user. */
 export const authenticate = (req: Request, _res: Response, next: NextFunction): void => {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
@@ -29,14 +29,40 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
   }
   try {
     const payload = tokenService.verifyAccessToken(header.slice(7));
-    req.user = { userId: payload.sub, fullName: payload.name, roles: payload.roles };
+    req.user = {
+      userId: payload.sub,
+      fullName: payload.name,
+      roles: payload.roles,
+      permissions: payload.permissions,
+      tenantId: payload.tenantId,
+    };
     next();
   } catch {
     next(AppError.unauthorized('Invalid or expired access token', 'TOKEN_INVALID'));
   }
 };
 
-/** Role-based authorization guard. */
+/**
+ * Permission-based authorization. Permission codes live in the database
+ * (dbo.Permissions) and are resolved into the access token at issue time —
+ * nothing is hardcoded here beyond the code being checked.
+ */
+export const requirePermission =
+  (...codes: string[]) =>
+  (req: Request, _res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      next(AppError.unauthorized());
+      return;
+    }
+    const granted = req.user.permissions;
+    if (codes.every((code) => granted.includes(code))) {
+      next();
+      return;
+    }
+    next(AppError.forbidden());
+  };
+
+/** Role-based guard — kept for coarse checks; prefer requirePermission. */
 export const authorize =
   (...roles: string[]) =>
   (req: Request, _res: Response, next: NextFunction): void => {

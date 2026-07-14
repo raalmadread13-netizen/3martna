@@ -16,13 +16,24 @@ describe('JwtTokenService', () => {
   const tokens = new JwtTokenService();
 
   it('signs and verifies an access token round-trip', () => {
-    const token = tokens.signAccessToken({ sub: 42, name: 'Sara', roles: ['Tenant'] });
-    const payload = tokens.verifyAccessToken(token);
-    expect(payload).toEqual({ sub: 42, name: 'Sara', roles: ['Tenant'] });
+    const payload = {
+      sub: 42,
+      name: 'Sara',
+      roles: ['Resident'],
+      permissions: ['profile.manage'],
+      tenantId: null,
+    };
+    expect(tokens.verifyAccessToken(tokens.signAccessToken(payload))).toEqual(payload);
   });
 
   it('rejects tampered tokens', () => {
-    const token = tokens.signAccessToken({ sub: 1, name: 'X', roles: [] });
+    const token = tokens.signAccessToken({
+      sub: 1,
+      name: 'X',
+      roles: [],
+      permissions: [],
+      tenantId: null,
+    });
     expect(() => tokens.verifyAccessToken(`${token}x`)).toThrow();
   });
 

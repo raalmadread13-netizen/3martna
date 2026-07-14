@@ -83,6 +83,70 @@ Path alias: `@/*` → `src/*` (tsconfig + babel module-resolver).
 | Env validated at boot, secrets required in production | Fail fast, no guessable defaults |
 | Firebase optional-by-config | Local dev and CI run with zero cloud dependencies |
 
+## Authentication & Identity (Sprint 2)
+
+**SQL Server is the only source of truth** for users, roles, permissions and
+sessions. Firebase never manages identity — it is reserved for push
+notifications, storage and future messaging.
+
+### Data model (`database/migrations/0001_identity.sql`)
+
+`Users`, `Roles`, `Permissions`, `RolePermissions`, `UserRoles`,
+`RefreshTokens`, `VerificationCodes`, `AuditLogs` — every table carries
+`Id, CreatedAt, UpdatedAt, CreatedBy, UpdatedBy, IsDeleted, RowVersion`,
+soft deletes with filtered unique indexes, and FKs across the identity graph.
+`Users.TenantId` (nullable) provides multi-tenant readiness; the Tenants
+table + FK arrive with the tenancy sprint.
+
+### Token model
+
+- **Access token** — JWT, 15 min, carries `sub`, `roles`, `permissions`
+  (resolved from the database at issue time) and `tenantId`.
+- **Refresh token** — opaque 256-bit value; only its SHA-256 hash is stored.
+  Every use **rotates** the token; presenting an already-rotated token is
+  treated as theft and revokes every session for that user (reuse detection).
+- Password change / reset revokes all refresh tokens.
+
+### Authorization
+
+Permission-based: `requirePermission('users.manage')` checks codes that live
+in `dbo.Permissions` and reach the request via the access token. Nothing is
+hardcoded — new permissions are seed rows, and SuperAdmin receives every
+permission via the seed's cross join.
+
+### Brute force & enumeration defences
+
+- Strict rate limit on credential endpoints (`AUTH_RATE_LIMIT_MAX`).
+- Account lockout after `AUTH_MAX_FAILED_LOGINS` failures for
+  `AUTH_LOCKOUT_MINUTES` (tracked on the Users row).
+- One generic `INVALID_CREDENTIALS` error for wrong password *and* unknown
+  user, with a dummy bcrypt comparison to equalize response timing.
+- Forgot-password always returns the same acknowledgement.
+- Verification codes: hashed at rest, single-use, TTL-bound, 5 attempts max.
+
+### Auth flow wiring
+
+```
+routes (Joi validation, rate limits, Swagger)
+  → auth.controller → container (composition root)
+  → use-cases: RegisterUser · LoginUser · RefreshSession · LogoutUser ·
+               ChangePassword · ForgotPassword · ResetPassword ·
+               RequestVerification · ConfirmVerification · GetCurrentUser
+  → repository interfaces → SQL Server (parameterized queries)
+```
+
+The composition root (`presentation/http/container.ts`) exposes a test seam
+(`setContainer`) so the entire HTTP surface is integration-tested against
+in-memory repositories — no database needed in CI.
+
+### Mobile session lifecycle
+
+`AuthProvider` (application layer) restores the session on launch
+(auto-login), stores tokens exclusively in encrypted SecureStore, and the
+axios client transparently rotates refresh tokens on 401 with a shared
+refresh queue. Navigation is auth-aware: the mounted stack follows the
+session state, so screens never navigate across the auth boundary.
+
 ## Adding a feature (the recipe every sprint follows)
 
 1. Migration(s) in `database/migrations/` + stored procedures.

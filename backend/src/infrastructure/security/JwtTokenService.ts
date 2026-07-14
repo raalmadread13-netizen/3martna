@@ -26,6 +26,8 @@ export class JwtTokenService implements ITokenService {
       sub: Number(decoded.sub),
       name: String(decoded.name ?? ''),
       roles: Array.isArray(decoded.roles) ? (decoded.roles as string[]) : [],
+      permissions: Array.isArray(decoded.permissions) ? (decoded.permissions as string[]) : [],
+      tenantId: typeof decoded.tenantId === 'number' ? decoded.tenantId : null,
     };
   }
 

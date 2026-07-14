@@ -4,10 +4,17 @@
 
 منصّة إدارة العمارات والشقق السكنية — الأردن.
 
-> **Status: Sprint 1 — Project Foundation.**
-> This sprint delivers the architecture, tooling, and infrastructure skeleton.
-> No business features are implemented yet — they arrive in later sprints on
-> top of this foundation.
+> **Status: Sprint 2 — Authentication & Identity ✅**
+> Sprint 1 delivered the Clean Architecture foundation; Sprint 2 adds a
+> complete production-grade identity system: SQL Server-backed users, roles
+> and database-driven permissions, JWT auth with rotating refresh tokens,
+> brute-force protection, email/phone verification, and the full mobile auth
+> flow (auto-login, auto-refresh, secure storage). Business features
+> (buildings, rent, maintenance) arrive in the next sprints.
+>
+> **CTO decision:** SQL Server is the only source of truth for identity.
+> Firebase is used solely for push notifications, storage and future
+> messaging — never for user management.
 
 ## Monorepo Layout
 

@@ -56,6 +56,18 @@ export const env = {
   rateLimit: {
     windowMinutes: toNumber('RATE_LIMIT_WINDOW_MINUTES', 15),
     max: toNumber('RATE_LIMIT_MAX', 300),
+    authMax: toNumber('AUTH_RATE_LIMIT_MAX', 10),
+  },
+
+  auth: {
+    /** Failed logins before the account is temporarily locked. */
+    maxFailedLogins: toNumber('AUTH_MAX_FAILED_LOGINS', 5),
+    /** Lockout duration once the threshold is hit. */
+    lockoutMinutes: toNumber('AUTH_LOCKOUT_MINUTES', 15),
+    /** Lifetime of email/phone verification codes. */
+    verificationCodeTtlMinutes: toNumber('AUTH_VERIFICATION_TTL_MINUTES', 10),
+    /** Lifetime of password-reset tokens. */
+    resetTokenTtlMinutes: toNumber('AUTH_RESET_TTL_MINUTES', 60),
   },
 
   firebase: {

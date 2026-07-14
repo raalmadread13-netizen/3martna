@@ -1,24 +1,15 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { useAppBootstrap } from '@/application/hooks/useAppBootstrap';
-import { RootScreenProps } from '@/presentation/navigation/types';
+import React from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { palette, spacing } from '@/presentation/theme/colors';
 
-/** Brand splash — waits for bootstrap, then hands off to Welcome. */
-export const SplashScreen = ({ navigation }: RootScreenProps<'Splash'>): React.JSX.Element => {
-  const { isReady } = useAppBootstrap();
-
-  useEffect(() => {
-    if (isReady) navigation.replace('Welcome');
-  }, [isReady, navigation]);
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.logoAr}>عمارتنا</Text>
-      <Text style={styles.logoEn}>3martna</Text>
-    </View>
-  );
-};
+/** Brand splash shown while the session is being restored. */
+export const SplashScreen = (): React.JSX.Element => (
+  <View style={styles.container}>
+    <Text style={styles.logoAr}>عمارتنا</Text>
+    <Text style={styles.logoEn}>3martna</Text>
+    <ActivityIndicator color={palette.gold500} style={styles.spinner} />
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -29,4 +20,5 @@ const styles = StyleSheet.create({
   },
   logoAr: { color: palette.gold500, fontSize: 44, fontWeight: '700' },
   logoEn: { color: palette.slate400, fontSize: 18, marginTop: spacing.sm, letterSpacing: 4 },
+  spinner: { marginTop: spacing.xl },
 });
