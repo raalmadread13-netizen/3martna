@@ -1,8 +1,8 @@
 export type VerificationPurpose = 'EmailVerify' | 'PhoneVerify' | 'PasswordReset';
 
 export interface VerificationCode {
-  id: number;
-  userId: number;
+  id: string;
+  userId: string;
   /** SHA-256 hex of the code/token — never stored in plain form. */
   codeHash: string;
   purpose: VerificationPurpose;
@@ -13,7 +13,7 @@ export interface VerificationCode {
 }
 
 export interface NewVerificationCode {
-  userId: number;
+  userId: string;
   codeHash: string;
   purpose: VerificationPurpose;
   expiresAt: Date;

@@ -1,6 +1,6 @@
 export interface RefreshToken {
-  id: number;
-  userId: number;
+  id: string;
+  userId: string;
   /** SHA-256 hex — the plain token is never persisted. */
   tokenHash: string;
   expiresAt: Date;
@@ -12,7 +12,7 @@ export interface RefreshToken {
 }
 
 export interface NewRefreshToken {
-  userId: number;
+  userId: string;
   tokenHash: string;
   expiresAt: Date;
   createdByIp: string | null;

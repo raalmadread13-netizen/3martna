@@ -8,7 +8,7 @@ export interface IVerificationCodeRepository {
   /** Invalidate previous active codes of the same purpose, then insert. */
   createReplacingActive(code: NewVerificationCode): Promise<void>;
   /** Latest unconsumed, unexpired code for a user + purpose. */
-  findActive(userId: number, purpose: VerificationPurpose): Promise<VerificationCode | null>;
-  incrementAttempts(id: number): Promise<void>;
-  consume(id: number): Promise<void>;
+  findActive(userId: string, purpose: VerificationPurpose): Promise<VerificationCode | null>;
+  incrementAttempts(id: string): Promise<void>;
+  consume(id: string): Promise<void>;
 }

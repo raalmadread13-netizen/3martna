@@ -3,12 +3,12 @@ import { tokenService } from '@infrastructure/security/JwtTokenService';
 import { AppError } from '@shared/errors/AppError';
 
 export interface AuthenticatedUser {
-  userId: number;
+  userId: string;
   fullName: string;
   roles: string[];
   /** Database-driven permission codes resolved when the token was issued. */
   permissions: string[];
-  tenantId: number | null;
+  tenantId: string | null;
 }
 
 declare global {

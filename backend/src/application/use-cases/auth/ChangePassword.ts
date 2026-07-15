@@ -14,7 +14,7 @@ export class ChangePassword {
   ) {}
 
   async execute(
-    userId: number,
+    userId: string,
     currentPassword: string,
     newPassword: string,
     ip: string | null,

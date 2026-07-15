@@ -1,8 +1,7 @@
-/** Mirrors the backend PublicUser contract (shared/types is canonical). */
+/** Mirrors the backend PublicUser contract (ids are GUIDs, ADR-0003). */
 export interface User {
-  id: number;
-  publicId: string;
-  tenantId: number | null;
+  id: string;
+  tenantId: string | null;
   firstName: string;
   lastName: string;
   email: string | null;

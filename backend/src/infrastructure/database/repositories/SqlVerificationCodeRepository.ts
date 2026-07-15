@@ -7,8 +7,8 @@ import { IVerificationCodeRepository } from '@domain/repositories/IVerificationC
 import { execQuery } from '@infrastructure/database/connection';
 
 interface CodeRow {
-  Id: number;
-  UserId: number;
+  Id: string;
+  UserId: string;
   CodeHash: string;
   Purpose: VerificationPurpose;
   ExpiresAt: Date;
@@ -34,13 +34,13 @@ export class SqlVerificationCodeRepository implements IVerificationCodeRepositor
     );
   }
 
-  async findActive(userId: number, purpose: VerificationPurpose): Promise<VerificationCode | null> {
+  async findActive(userId: string, purpose: VerificationPurpose): Promise<VerificationCode | null> {
     const rows = await execQuery<CodeRow>(
       `SELECT TOP 1 Id, UserId, CodeHash, Purpose, ExpiresAt, ConsumedAt, AttemptCount, CreatedAt
        FROM dbo.VerificationCodes
        WHERE UserId = @userId AND Purpose = @purpose
          AND ConsumedAt IS NULL AND ExpiresAt > SYSUTCDATETIME()
-       ORDER BY Id DESC`,
+       ORDER BY CreatedAt DESC, Id DESC`,
       { userId, purpose },
     );
     const row = rows[0];
@@ -58,7 +58,7 @@ export class SqlVerificationCodeRepository implements IVerificationCodeRepositor
       : null;
   }
 
-  async incrementAttempts(id: number): Promise<void> {
+  async incrementAttempts(id: string): Promise<void> {
     await execQuery(
       `UPDATE dbo.VerificationCodes
        SET AttemptCount = AttemptCount + 1, UpdatedAt = SYSUTCDATETIME() WHERE Id = @id`,
@@ -66,7 +66,7 @@ export class SqlVerificationCodeRepository implements IVerificationCodeRepositor
     );
   }
 
-  async consume(id: number): Promise<void> {
+  async consume(id: string): Promise<void> {
     await execQuery(
       `UPDATE dbo.VerificationCodes
        SET ConsumedAt = SYSUTCDATETIME(), UpdatedAt = SYSUTCDATETIME() WHERE Id = @id`,

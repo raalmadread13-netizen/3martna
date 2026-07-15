@@ -23,11 +23,11 @@ export class JwtTokenService implements ITokenService {
     const decoded = jwt.verify(token, env.jwt.accessSecret) as jwt.JwtPayload;
     if (decoded.type !== 'access') throw new Error('Invalid token type');
     return {
-      sub: Number(decoded.sub),
+      sub: String(decoded.sub),
       name: String(decoded.name ?? ''),
       roles: Array.isArray(decoded.roles) ? (decoded.roles as string[]) : [],
       permissions: Array.isArray(decoded.permissions) ? (decoded.permissions as string[]) : [],
-      tenantId: typeof decoded.tenantId === 'number' ? decoded.tenantId : null,
+      tenantId: typeof decoded.tenantId === 'string' ? decoded.tenantId : null,
     };
   }
 

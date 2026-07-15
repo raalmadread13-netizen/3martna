@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { BcryptPasswordHasher } from '@infrastructure/security/BcryptPasswordHasher';
 import { JwtTokenService } from '@infrastructure/security/JwtTokenService';
 
@@ -17,7 +18,7 @@ describe('JwtTokenService', () => {
 
   it('signs and verifies an access token round-trip', () => {
     const payload = {
-      sub: 42,
+      sub: crypto.randomUUID(),
       name: 'Sara',
       roles: ['Resident'],
       permissions: ['profile.manage'],
@@ -28,7 +29,7 @@ describe('JwtTokenService', () => {
 
   it('rejects tampered tokens', () => {
     const token = tokens.signAccessToken({
-      sub: 1,
+      sub: crypto.randomUUID(),
       name: 'X',
       roles: [],
       permissions: [],

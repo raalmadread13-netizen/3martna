@@ -1,12 +1,12 @@
 export interface Role {
-  id: number;
+  id: string;
   name: string;
   nameAr: string;
   description: string | null;
 }
 
 export interface Permission {
-  id: number;
+  id: string;
   /** Machine name checked by the authorization middleware, e.g. 'users.manage'. */
   code: string;
   name: string;

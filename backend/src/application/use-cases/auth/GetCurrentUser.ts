@@ -9,7 +9,7 @@ export class GetCurrentUser {
     private readonly roles: IRoleRepository,
   ) {}
 
-  async execute(userId: number): Promise<PublicUser> {
+  async execute(userId: string): Promise<PublicUser> {
     const user = await this.users.findById(userId);
     if (!user || user.isDeleted) throw AppError.unauthorized();
     const auth = await this.roles.getUserAuthorization(userId);

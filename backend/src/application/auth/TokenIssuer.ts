@@ -21,7 +21,7 @@ export class TokenIssuer {
     private readonly refreshTokens: IRefreshTokenRepository,
   ) {}
 
-  async authorizationFor(userId: number): Promise<UserAuthorization> {
+  async authorizationFor(userId: string): Promise<UserAuthorization> {
     return this.roles.getUserAuthorization(userId);
   }
 

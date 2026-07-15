@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NewAuditLog } from '@domain/entities/AuditLog';
 import { NewRefreshToken, RefreshToken } from '@domain/entities/RefreshToken';
 import { Role, UserAuthorization } from '@domain/entities/Role';
@@ -21,9 +22,8 @@ import { tokenService } from '@infrastructure/security/JwtTokenService';
 
 export class InMemoryUserRepository implements IUserRepository {
   users: User[] = [];
-  private nextId = 1;
 
-  async findById(id: number): Promise<User | null> {
+  async findById(id: string): Promise<User | null> {
     return this.users.find((user) => user.id === id && !user.isDeleted) ?? null;
   }
 
@@ -45,8 +45,7 @@ export class InMemoryUserRepository implements IUserRepository {
 
   async create(input: NewUser): Promise<User> {
     const user: User = {
-      id: this.nextId++,
-      publicId: `pub-${this.nextId}`,
+      id: crypto.randomUUID(),
       tenantId: null,
       firstName: input.firstName,
       lastName: input.lastName,
@@ -69,12 +68,12 @@ export class InMemoryUserRepository implements IUserRepository {
     return user;
   }
 
-  async setPasswordHash(userId: number, passwordHash: string): Promise<void> {
+  async setPasswordHash(userId: string, passwordHash: string): Promise<void> {
     const user = await this.findById(userId);
     if (user) user.passwordHash = passwordHash;
   }
 
-  async recordLoginSuccess(userId: number): Promise<void> {
+  async recordLoginSuccess(userId: string): Promise<void> {
     const user = await this.findById(userId);
     if (user) {
       user.lastLoginAt = new Date();
@@ -84,7 +83,7 @@ export class InMemoryUserRepository implements IUserRepository {
   }
 
   async recordLoginFailure(
-    userId: number,
+    userId: string,
     maxAttempts: number,
     lockMinutes: number,
   ): Promise<void> {
@@ -98,12 +97,12 @@ export class InMemoryUserRepository implements IUserRepository {
     }
   }
 
-  async setEmailVerified(userId: number): Promise<void> {
+  async setEmailVerified(userId: string): Promise<void> {
     const user = await this.findById(userId);
     if (user) user.emailVerified = true;
   }
 
-  async setPhoneVerified(userId: number): Promise<void> {
+  async setPhoneVerified(userId: string): Promise<void> {
     const user = await this.findById(userId);
     if (user) user.phoneVerified = true;
   }
@@ -120,8 +119,8 @@ const SEEDED_ROLES = [
 ];
 
 export class InMemoryRoleRepository implements IRoleRepository {
-  private readonly roles: Role[] = SEEDED_ROLES.map((name, index) => ({
-    id: index + 1,
+  private readonly roles: Role[] = SEEDED_ROLES.map((name) => ({
+    id: crypto.randomUUID(),
     name,
     nameAr: name,
     description: null,
@@ -143,23 +142,29 @@ export class InMemoryRoleRepository implements IRoleRepository {
     SecurityGuard: ['profile.manage'],
   };
 
-  private readonly userRoles = new Map<number, Set<number>>();
+  private readonly userRoles = new Map<string, Set<string>>();
 
   async findByName(name: string): Promise<Role | null> {
     return this.roles.find((role) => role.name === name) ?? null;
   }
 
-  async getUserAuthorization(userId: number): Promise<UserAuthorization> {
+  async getUserAuthorization(userId: string): Promise<UserAuthorization> {
     const roleIds = [...(this.userRoles.get(userId) ?? [])];
     const roles = this.roles.filter((role) => roleIds.includes(role.id)).map((role) => role.name);
     const permissions = [...new Set(roles.flatMap((role) => this.rolePermissions[role] ?? []))];
     return { roles, permissions };
   }
 
-  async assignRoleToUser(userId: number, roleId: number): Promise<void> {
-    const set = this.userRoles.get(userId) ?? new Set<number>();
+  async assignRoleToUser(userId: string, roleId: string): Promise<void> {
+    const set = this.userRoles.get(userId) ?? new Set<string>();
     set.add(roleId);
     this.userRoles.set(userId, set);
+  }
+
+  async anyUserHasRole(roleName: string): Promise<boolean> {
+    const role = await this.findByName(roleName);
+    if (!role) return false;
+    return [...this.userRoles.values()].some((set) => set.has(role.id));
   }
 }
 
@@ -167,11 +172,10 @@ export class InMemoryRoleRepository implements IRoleRepository {
 
 export class InMemoryRefreshTokenRepository implements IRefreshTokenRepository {
   tokens: RefreshToken[] = [];
-  private nextId = 1;
 
   async create(token: NewRefreshToken): Promise<void> {
     this.tokens.push({
-      id: this.nextId++,
+      id: crypto.randomUUID(),
       userId: token.userId,
       tokenHash: token.tokenHash,
       expiresAt: token.expiresAt,
@@ -194,13 +198,13 @@ export class InMemoryRefreshTokenRepository implements IRefreshTokenRepository {
     }
   }
 
-  async revokeAllForUser(userId: number): Promise<void> {
+  async revokeAllForUser(userId: string): Promise<void> {
     for (const token of this.tokens) {
       if (token.userId === userId && !token.revokedAt) token.revokedAt = new Date();
     }
   }
 
-  activeCountFor(userId: number): number {
+  activeCountFor(userId: string): number {
     return this.tokens.filter((token) => token.userId === userId && !token.revokedAt).length;
   }
 }
@@ -209,7 +213,6 @@ export class InMemoryRefreshTokenRepository implements IRefreshTokenRepository {
 
 export class InMemoryVerificationCodeRepository implements IVerificationCodeRepository {
   codes: VerificationCode[] = [];
-  private nextId = 1;
 
   async createReplacingActive(code: NewVerificationCode): Promise<void> {
     for (const existing of this.codes) {
@@ -222,7 +225,7 @@ export class InMemoryVerificationCodeRepository implements IVerificationCodeRepo
       }
     }
     this.codes.push({
-      id: this.nextId++,
+      id: crypto.randomUUID(),
       userId: code.userId,
       codeHash: code.codeHash,
       purpose: code.purpose,
@@ -233,7 +236,7 @@ export class InMemoryVerificationCodeRepository implements IVerificationCodeRepo
     });
   }
 
-  async findActive(userId: number, purpose: VerificationPurpose): Promise<VerificationCode | null> {
+  async findActive(userId: string, purpose: VerificationPurpose): Promise<VerificationCode | null> {
     return (
       [...this.codes]
         .reverse()
@@ -247,12 +250,12 @@ export class InMemoryVerificationCodeRepository implements IVerificationCodeRepo
     );
   }
 
-  async incrementAttempts(id: number): Promise<void> {
+  async incrementAttempts(id: string): Promise<void> {
     const code = this.codes.find((entry) => entry.id === id);
     if (code) code.attemptCount += 1;
   }
 
-  async consume(id: number): Promise<void> {
+  async consume(id: string): Promise<void> {
     const code = this.codes.find((entry) => entry.id === id);
     if (code) code.consumedAt = new Date();
   }

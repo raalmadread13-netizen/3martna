@@ -26,7 +26,7 @@ export class RequestVerification {
     private readonly config: VerificationConfig,
   ) {}
 
-  async execute(userId: number, channel: VerificationChannel): Promise<{ devCode?: string }> {
+  async execute(userId: string, channel: VerificationChannel): Promise<{ devCode?: string }> {
     const user = await this.users.findById(userId);
     if (!user) throw AppError.unauthorized();
 

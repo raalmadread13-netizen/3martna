@@ -1,23 +1,30 @@
 /* ============================================================
-   Migration 0001 — Identity & Authentication
+   Migration 0001 — Identity & Authentication (baseline v2)
    Tables: Users, Roles, Permissions, RolePermissions, UserRoles,
            RefreshTokens, VerificationCodes, AuditLogs
-   Standards (every table): Id, CreatedAt, UpdatedAt, CreatedBy,
-   UpdatedBy, IsDeleted (soft delete), RowVersion (concurrency).
-   Multi-tenant readiness: Users.TenantId (nullable until the
-   Tenants feature sprint introduces dbo.Tenants + FK).
+
+   ⚠ BASELINE REWRITE (Sprint 3, ADR-0003): primary keys converted
+   from INT IDENTITY to UNIQUEIDENTIFIER before any environment was
+   provisioned. Development databases created from the previous
+   version of this file must be dropped and re-provisioned.
+
+   Standards (every table): Id (GUID), CreatedAt, UpdatedAt,
+   CreatedBy, UpdatedBy, IsDeleted (soft delete), RowVersion
+   (optimistic concurrency).
+   Multi-tenant: Users.TenantId — FK added in migration 0002
+   together with the Tenants table.
    ============================================================ */
 
 /* ------------------------- ROLES ------------------------- */
 CREATE TABLE dbo.Roles (
-    Id          INT IDENTITY(1,1) NOT NULL,
+    Id          UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_Roles_Id DEFAULT NEWSEQUENTIALID(),
     Name        VARCHAR(50)   NOT NULL,
     NameAr      NVARCHAR(50)  NOT NULL,
     Description NVARCHAR(255) NULL,
     CreatedAt   DATETIME2(0)  NOT NULL CONSTRAINT DF_Roles_CreatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedAt   DATETIME2(0)  NOT NULL CONSTRAINT DF_Roles_UpdatedAt DEFAULT SYSUTCDATETIME(),
-    CreatedBy   INT           NULL,
-    UpdatedBy   INT           NULL,
+    CreatedBy   UNIQUEIDENTIFIER NULL,
+    UpdatedBy   UNIQUEIDENTIFIER NULL,
     IsDeleted   BIT           NOT NULL CONSTRAINT DF_Roles_IsDeleted DEFAULT 0,
     RowVersion  ROWVERSION    NOT NULL,
     CONSTRAINT PK_Roles PRIMARY KEY (Id),
@@ -27,14 +34,14 @@ GO
 
 /* ---------------------- PERMISSIONS ---------------------- */
 CREATE TABLE dbo.Permissions (
-    Id          INT IDENTITY(1,1) NOT NULL,
+    Id          UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_Permissions_Id DEFAULT NEWSEQUENTIALID(),
     Code        VARCHAR(100)  NOT NULL,   -- machine name, e.g. 'users.manage'
     Name        NVARCHAR(150) NOT NULL,
     Category    VARCHAR(50)   NOT NULL,   -- grouping for admin UI
     CreatedAt   DATETIME2(0)  NOT NULL CONSTRAINT DF_Permissions_CreatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedAt   DATETIME2(0)  NOT NULL CONSTRAINT DF_Permissions_UpdatedAt DEFAULT SYSUTCDATETIME(),
-    CreatedBy   INT           NULL,
-    UpdatedBy   INT           NULL,
+    CreatedBy   UNIQUEIDENTIFIER NULL,
+    UpdatedBy   UNIQUEIDENTIFIER NULL,
     IsDeleted   BIT           NOT NULL CONSTRAINT DF_Permissions_IsDeleted DEFAULT 0,
     RowVersion  ROWVERSION    NOT NULL,
     CONSTRAINT PK_Permissions PRIMARY KEY (Id),
@@ -43,13 +50,13 @@ CREATE TABLE dbo.Permissions (
 GO
 
 CREATE TABLE dbo.RolePermissions (
-    Id           INT IDENTITY(1,1) NOT NULL,
-    RoleId       INT NOT NULL,
-    PermissionId INT NOT NULL,
+    Id           UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_RolePermissions_Id DEFAULT NEWSEQUENTIALID(),
+    RoleId       UNIQUEIDENTIFIER NOT NULL,
+    PermissionId UNIQUEIDENTIFIER NOT NULL,
     CreatedAt    DATETIME2(0) NOT NULL CONSTRAINT DF_RolePermissions_CreatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedAt    DATETIME2(0) NOT NULL CONSTRAINT DF_RolePermissions_UpdatedAt DEFAULT SYSUTCDATETIME(),
-    CreatedBy    INT NULL,
-    UpdatedBy    INT NULL,
+    CreatedBy    UNIQUEIDENTIFIER NULL,
+    UpdatedBy    UNIQUEIDENTIFIER NULL,
     IsDeleted    BIT NOT NULL CONSTRAINT DF_RolePermissions_IsDeleted DEFAULT 0,
     RowVersion   ROWVERSION NOT NULL,
     CONSTRAINT PK_RolePermissions PRIMARY KEY (Id),
@@ -61,9 +68,8 @@ GO
 
 /* ------------------------- USERS ------------------------- */
 CREATE TABLE dbo.Users (
-    Id                INT IDENTITY(1,1) NOT NULL,
-    PublicId          UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_Users_PublicId DEFAULT NEWID(),
-    TenantId          INT NULL,                 -- multi-tenant readiness (FK added with Tenants sprint)
+    Id                UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_Users_Id DEFAULT NEWSEQUENTIALID(),
+    TenantId          UNIQUEIDENTIFIER NULL,     -- FK → Tenants added in migration 0002
     FirstName         NVARCHAR(75)  NOT NULL,
     LastName          NVARCHAR(75)  NOT NULL,
     Email             VARCHAR(255)  NULL,
@@ -79,12 +85,11 @@ CREATE TABLE dbo.Users (
     LockedUntil       DATETIME2(0)  NULL,       -- brute-force lockout
     CreatedAt         DATETIME2(0)  NOT NULL CONSTRAINT DF_Users_CreatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedAt         DATETIME2(0)  NOT NULL CONSTRAINT DF_Users_UpdatedAt DEFAULT SYSUTCDATETIME(),
-    CreatedBy         INT           NULL,
-    UpdatedBy         INT           NULL,
+    CreatedBy         UNIQUEIDENTIFIER NULL,
+    UpdatedBy         UNIQUEIDENTIFIER NULL,
     IsDeleted         BIT           NOT NULL CONSTRAINT DF_Users_IsDeleted DEFAULT 0,
     RowVersion        ROWVERSION    NOT NULL,
     CONSTRAINT PK_Users PRIMARY KEY (Id),
-    CONSTRAINT UQ_Users_PublicId UNIQUE (PublicId),
     CONSTRAINT CK_Users_Lang CHECK (PreferredLanguage IN ('ar', 'en')),
     CONSTRAINT CK_Users_Status CHECK (Status IN ('Active', 'Suspended'))
 );
@@ -103,13 +108,13 @@ GO
 
 /* ----------------------- USER ROLES ----------------------- */
 CREATE TABLE dbo.UserRoles (
-    Id         INT IDENTITY(1,1) NOT NULL,
-    UserId     INT NOT NULL,
-    RoleId     INT NOT NULL,
+    Id         UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_UserRoles_Id DEFAULT NEWSEQUENTIALID(),
+    UserId     UNIQUEIDENTIFIER NOT NULL,
+    RoleId     UNIQUEIDENTIFIER NOT NULL,
     CreatedAt  DATETIME2(0) NOT NULL CONSTRAINT DF_UserRoles_CreatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedAt  DATETIME2(0) NOT NULL CONSTRAINT DF_UserRoles_UpdatedAt DEFAULT SYSUTCDATETIME(),
-    CreatedBy  INT NULL,
-    UpdatedBy  INT NULL,
+    CreatedBy  UNIQUEIDENTIFIER NULL,
+    UpdatedBy  UNIQUEIDENTIFIER NULL,
     IsDeleted  BIT NOT NULL CONSTRAINT DF_UserRoles_IsDeleted DEFAULT 0,
     RowVersion ROWVERSION NOT NULL,
     CONSTRAINT PK_UserRoles PRIMARY KEY (Id),
@@ -125,8 +130,8 @@ GO
 
 /* --------------------- REFRESH TOKENS --------------------- */
 CREATE TABLE dbo.RefreshTokens (
-    Id                  BIGINT IDENTITY(1,1) NOT NULL,
-    UserId              INT NOT NULL,
+    Id                  UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_RefreshTokens_Id DEFAULT NEWSEQUENTIALID(),
+    UserId              UNIQUEIDENTIFIER NOT NULL,
     TokenHash           VARCHAR(64) NOT NULL,     -- SHA-256 hex; plain token never stored
     ExpiresAt           DATETIME2(0) NOT NULL,
     RevokedAt           DATETIME2(0) NULL,
@@ -134,8 +139,8 @@ CREATE TABLE dbo.RefreshTokens (
     CreatedByIp         VARCHAR(45) NULL,
     CreatedAt           DATETIME2(0) NOT NULL CONSTRAINT DF_RefreshTokens_CreatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedAt           DATETIME2(0) NOT NULL CONSTRAINT DF_RefreshTokens_UpdatedAt DEFAULT SYSUTCDATETIME(),
-    CreatedBy           INT NULL,
-    UpdatedBy           INT NULL,
+    CreatedBy           UNIQUEIDENTIFIER NULL,
+    UpdatedBy           UNIQUEIDENTIFIER NULL,
     IsDeleted           BIT NOT NULL CONSTRAINT DF_RefreshTokens_IsDeleted DEFAULT 0,
     RowVersion          ROWVERSION NOT NULL,
     CONSTRAINT PK_RefreshTokens PRIMARY KEY (Id),
@@ -150,11 +155,11 @@ GO
 
 /* ------------------- VERIFICATION CODES -------------------
    Email verification, phone verification and password-reset
-   tokens. Only hashes are stored; codes expire and are
+   codes. Only hashes are stored; codes expire and are
    single-use with an attempt counter. */
 CREATE TABLE dbo.VerificationCodes (
-    Id           BIGINT IDENTITY(1,1) NOT NULL,
-    UserId       INT NOT NULL,
+    Id           UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_VerificationCodes_Id DEFAULT NEWSEQUENTIALID(),
+    UserId       UNIQUEIDENTIFIER NOT NULL,
     CodeHash     VARCHAR(64) NOT NULL,             -- SHA-256 hex
     Purpose      VARCHAR(20) NOT NULL,
     ExpiresAt    DATETIME2(0) NOT NULL,
@@ -162,8 +167,8 @@ CREATE TABLE dbo.VerificationCodes (
     AttemptCount INT NOT NULL CONSTRAINT DF_VerificationCodes_Attempts DEFAULT 0,
     CreatedAt    DATETIME2(0) NOT NULL CONSTRAINT DF_VerificationCodes_CreatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedAt    DATETIME2(0) NOT NULL CONSTRAINT DF_VerificationCodes_UpdatedAt DEFAULT SYSUTCDATETIME(),
-    CreatedBy    INT NULL,
-    UpdatedBy    INT NULL,
+    CreatedBy    UNIQUEIDENTIFIER NULL,
+    UpdatedBy    UNIQUEIDENTIFIER NULL,
     IsDeleted    BIT NOT NULL CONSTRAINT DF_VerificationCodes_IsDeleted DEFAULT 0,
     RowVersion   ROWVERSION NOT NULL,
     CONSTRAINT PK_VerificationCodes PRIMARY KEY (Id),
@@ -179,8 +184,9 @@ GO
 
 /* ------------------------ AUDIT LOGS ----------------------- */
 CREATE TABLE dbo.AuditLogs (
-    Id         BIGINT IDENTITY(1,1) NOT NULL,
-    UserId     INT NULL,                          -- NULL for anonymous events
+    Id         UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_AuditLogs_Id DEFAULT NEWSEQUENTIALID(),
+    TenantId   UNIQUEIDENTIFIER NULL,             -- auth events may be tenantless
+    UserId     UNIQUEIDENTIFIER NULL,             -- NULL for anonymous events
     Action     VARCHAR(50) NOT NULL,              -- e.g. LOGIN, LOGIN_FAILED, PASSWORD_RESET
     EntityType VARCHAR(50) NULL,
     EntityId   VARCHAR(50) NULL,
@@ -189,8 +195,8 @@ CREATE TABLE dbo.AuditLogs (
     UserAgent  VARCHAR(300) NULL,
     CreatedAt  DATETIME2(0) NOT NULL CONSTRAINT DF_AuditLogs_CreatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedAt  DATETIME2(0) NOT NULL CONSTRAINT DF_AuditLogs_UpdatedAt DEFAULT SYSUTCDATETIME(),
-    CreatedBy  INT NULL,
-    UpdatedBy  INT NULL,
+    CreatedBy  UNIQUEIDENTIFIER NULL,
+    UpdatedBy  UNIQUEIDENTIFIER NULL,
     IsDeleted  BIT NOT NULL CONSTRAINT DF_AuditLogs_IsDeleted DEFAULT 0,
     RowVersion ROWVERSION NOT NULL,
     CONSTRAINT PK_AuditLogs PRIMARY KEY (Id),

@@ -4,17 +4,21 @@
 
 منصّة إدارة العمارات والشقق السكنية — الأردن.
 
-> **Status: Sprint 2 — Authentication & Identity ✅**
-> Sprint 1 delivered the Clean Architecture foundation; Sprint 2 adds a
-> complete production-grade identity system: SQL Server-backed users, roles
-> and database-driven permissions, JWT auth with rotating refresh tokens,
-> brute-force protection, email/phone verification, and the full mobile auth
-> flow (auto-login, auto-refresh, secure storage). Business features
-> (buildings, rent, maintenance) arrive in the next sprints.
+> **Status: Sprint 3 — Core Domain Model & Multi-Tenant Foundation ✅**
+> Sprint 1 delivered the Clean Architecture foundation; Sprint 2 the identity
+> & authentication system; Sprint 3 designs the **business heart** — schema,
+> rich domain model and contracts only (no APIs/CRUD yet). Highlights:
+> GUID primary keys everywhere, shared-schema multi-tenancy with a `TenantId`
+> discriminator, a bootstrap-CLI SuperAdmin (no seeded admin), and 22
+> framework-independent domain aggregates with enforced invariants.
+> See [docs/DOMAIN.md](docs/DOMAIN.md), [docs/ER_DIAGRAM.md](docs/ER_DIAGRAM.md)
+> and the [ADRs](docs/adr/).
 >
-> **CTO decision:** SQL Server is the only source of truth for identity.
-> Firebase is used solely for push notifications, storage and future
-> messaging — never for user management.
+> **CTO decisions:** SQL Server is the only source of truth (Firebase = push,
+> storage, future messaging only); every entity belongs to exactly one Tenant;
+> business rules live inside the domain.
+>
+> First-run admin: `cd backend && npm run bootstrap:admin`
 
 ## Monorepo Layout
 

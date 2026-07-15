@@ -1,11 +1,11 @@
+import crypto from 'crypto';
 import { NewUser, User } from '@domain/entities/User';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
 import { execQuery } from '@infrastructure/database/connection';
 
 interface UserRow {
-  Id: number;
-  PublicId: string;
-  TenantId: number | null;
+  Id: string;
+  TenantId: string | null;
   FirstName: string;
   LastName: string;
   Email: string | null;
@@ -24,13 +24,12 @@ interface UserRow {
   IsDeleted: boolean;
 }
 
-const COLUMNS = `Id, PublicId, TenantId, FirstName, LastName, Email, PhoneNumber, PasswordHash,
+const COLUMNS = `Id, TenantId, FirstName, LastName, Email, PhoneNumber, PasswordHash,
   ProfileImageUrl, PreferredLanguage, Status, EmailVerified, PhoneVerified, LastLoginAt,
   FailedLoginCount, LockedUntil, CreatedAt, UpdatedAt, IsDeleted`;
 
 const mapUser = (row: UserRow): User => ({
   id: row.Id,
-  publicId: row.PublicId,
   tenantId: row.TenantId,
   firstName: row.FirstName,
   lastName: row.LastName,
@@ -53,9 +52,11 @@ const mapUser = (row: UserRow): User => ({
 /**
  * SQL Server implementation. Every statement is fully parameterized —
  * the driver binds values, no string interpolation ever reaches SQL.
+ * Ids are GUIDs generated app-side (crypto.randomUUID) so the entity id
+ * is known before the INSERT round-trip.
  */
 export class SqlUserRepository implements IUserRepository {
-  async findById(id: number): Promise<User | null> {
+  async findById(id: string): Promise<User | null> {
     const rows = await execQuery<UserRow>(
       `SELECT ${COLUMNS} FROM dbo.Users WHERE Id = @id AND IsDeleted = 0`,
       { id },
@@ -89,12 +90,14 @@ export class SqlUserRepository implements IUserRepository {
   }
 
   async create(user: NewUser): Promise<User> {
+    const id = crypto.randomUUID();
     const rows = await execQuery<UserRow>(
       `INSERT INTO dbo.Users
-         (FirstName, LastName, Email, PhoneNumber, PasswordHash, PreferredLanguage, CreatedBy)
-       VALUES (@firstName, @lastName, @email, @phoneNumber, @passwordHash, @preferredLanguage, @createdBy);
-       SELECT ${COLUMNS} FROM dbo.Users WHERE Id = SCOPE_IDENTITY();`,
+         (Id, FirstName, LastName, Email, PhoneNumber, PasswordHash, PreferredLanguage, CreatedBy)
+       VALUES (@id, @firstName, @lastName, @email, @phoneNumber, @passwordHash, @preferredLanguage, @createdBy);
+       SELECT ${COLUMNS} FROM dbo.Users WHERE Id = @id;`,
       {
+        id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -108,9 +111,9 @@ export class SqlUserRepository implements IUserRepository {
   }
 
   async setPasswordHash(
-    userId: number,
+    userId: string,
     passwordHash: string,
-    updatedBy: number | null,
+    updatedBy: string | null,
   ): Promise<void> {
     await execQuery(
       `UPDATE dbo.Users
@@ -120,7 +123,7 @@ export class SqlUserRepository implements IUserRepository {
     );
   }
 
-  async recordLoginSuccess(userId: number): Promise<void> {
+  async recordLoginSuccess(userId: string): Promise<void> {
     await execQuery(
       `UPDATE dbo.Users
        SET LastLoginAt = SYSUTCDATETIME(), FailedLoginCount = 0, LockedUntil = NULL,
@@ -131,7 +134,7 @@ export class SqlUserRepository implements IUserRepository {
   }
 
   async recordLoginFailure(
-    userId: number,
+    userId: string,
     maxAttempts: number,
     lockMinutes: number,
   ): Promise<void> {
@@ -149,14 +152,14 @@ export class SqlUserRepository implements IUserRepository {
     );
   }
 
-  async setEmailVerified(userId: number): Promise<void> {
+  async setEmailVerified(userId: string): Promise<void> {
     await execQuery(
       `UPDATE dbo.Users SET EmailVerified = 1, UpdatedAt = SYSUTCDATETIME() WHERE Id = @userId`,
       { userId },
     );
   }
 
-  async setPhoneVerified(userId: number): Promise<void> {
+  async setPhoneVerified(userId: string): Promise<void> {
     await execQuery(
       `UPDATE dbo.Users SET PhoneVerified = 1, UpdatedAt = SYSUTCDATETIME() WHERE Id = @userId`,
       { userId },

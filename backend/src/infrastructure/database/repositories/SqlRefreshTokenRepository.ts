@@ -3,8 +3,8 @@ import { IRefreshTokenRepository } from '@domain/repositories/IRefreshTokenRepos
 import { execQuery } from '@infrastructure/database/connection';
 
 interface TokenRow {
-  Id: number;
-  UserId: number;
+  Id: string;
+  UserId: string;
   TokenHash: string;
   ExpiresAt: Date;
   RevokedAt: Date | null;
@@ -58,7 +58,7 @@ export class SqlRefreshTokenRepository implements IRefreshTokenRepository {
     );
   }
 
-  async revokeAllForUser(userId: number): Promise<void> {
+  async revokeAllForUser(userId: string): Promise<void> {
     await execQuery(
       `UPDATE dbo.RefreshTokens
        SET RevokedAt = SYSUTCDATETIME(), UpdatedAt = SYSUTCDATETIME()

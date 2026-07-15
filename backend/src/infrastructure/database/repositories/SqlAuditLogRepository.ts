@@ -8,9 +8,11 @@ export class SqlAuditLogRepository implements IAuditLogRepository {
   async write(entry: NewAuditLog): Promise<void> {
     try {
       await execQuery(
-        `INSERT INTO dbo.AuditLogs (UserId, Action, EntityType, EntityId, Metadata, IpAddress, UserAgent, CreatedBy)
-         VALUES (@userId, @action, @entityType, @entityId, @metadata, @ipAddress, @userAgent, @userId)`,
+        `INSERT INTO dbo.AuditLogs
+           (TenantId, UserId, Action, EntityType, EntityId, Metadata, IpAddress, UserAgent, CreatedBy)
+         VALUES (@tenantId, @userId, @action, @entityType, @entityId, @metadata, @ipAddress, @userAgent, @userId)`,
         {
+          tenantId: entry.tenantId ?? null,
           userId: entry.userId,
           action: entry.action,
           entityType: entry.entityType ?? null,

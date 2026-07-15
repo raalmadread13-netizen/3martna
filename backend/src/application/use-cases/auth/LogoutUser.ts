@@ -10,7 +10,7 @@ export class LogoutUser {
   ) {}
 
   /** Revokes the presented refresh token. Idempotent by design. */
-  async execute(userId: number, refreshToken: string, ip: string | null): Promise<void> {
+  async execute(userId: string, refreshToken: string, ip: string | null): Promise<void> {
     await this.refreshTokens.revoke(this.tokens.hashToken(refreshToken));
     await this.audit.write({ userId, action: 'LOGOUT', ipAddress: ip });
   }

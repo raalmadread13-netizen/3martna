@@ -147,6 +147,53 @@ axios client transparently rotates refresh tokens on 401 with a shared
 refresh queue. Navigation is auth-aware: the mounted stack follows the
 session state, so screens never navigate across the auth boundary.
 
+## Core Domain Model & Multi-Tenancy (Sprint 3)
+
+Sprint 3 designed the business heart of the platform — **schema, rich domain,
+and contracts only** (no APIs, controllers or CRUD yet).
+
+### CTO change requests (applied first)
+
+1. **GUID primary keys everywhere** (ADR-0003) — all keys are
+   `UNIQUEIDENTIFIER`; ids are string-typed end to end (domain, DTOs, JWT).
+2. **No seeded admin** (ADR-0005) — the identity seed holds reference data
+   only; the first SuperAdmin is created by `npm run bootstrap:admin`
+   (dev-only, explicit production confirmation).
+3. **Standard columns on every business table** — `TenantId`, `CreatedAt`,
+   `UpdatedAt`, `CreatedBy`, `UpdatedBy`, `IsDeleted`, `RowVersion`.
+
+### Multi-tenancy (ADR-0004)
+
+Shared schema with a `TenantId` discriminator; a `Tenants` table anchors
+tenancy. Isolation is a **repository responsibility**: every business
+repository method takes a `tenantId` and filters by it
+(`ITenantRepository<T>`). Tenant-scoped uniqueness uses filtered composite
+indexes; hot-path indexes lead with `TenantId`.
+
+### Rich domain model (ADR-0006)
+
+`domain/business/` holds 22 framework-independent entities across aggregates
+(Building, Apartment, Owner, Resident, LeaseContract, Invoice, Payment,
+MaintenanceRequest, Complaint, Visitor/VisitorAccess, …) built on
+`domain/common` (`Entity`, `DomainError`, `Money`, `DateRange`). Fields are
+private; state changes go through intention-revealing methods and explicit
+state machines; construction validates via static factories. Full walk-through
+with diagrams: [DOMAIN.md](DOMAIN.md) and [ER_DIAGRAM.md](ER_DIAGRAM.md).
+
+### Contracts, not implementations
+
+This sprint ships repository **interfaces**
+(`domain/repositories/business/`), **DTOs** (`application/dtos/`) and
+**mapping profiles** (`application/mappers/`, entity → DTO one-directional).
+SQL repository implementations, use-cases and HTTP endpoints follow in later
+sprints against these stable contracts.
+
+### Two audit trails
+
+`AuditLog` (identity domain, Sprint 2) is the **security** trail. `ActivityLog`
+(business domain, Sprint 3) is the user-visible **product activity** feed. They
+are intentionally separate.
+
 ## Adding a feature (the recipe every sprint follows)
 
 1. Migration(s) in `database/migrations/` + stored procedures.

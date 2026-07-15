@@ -1,11 +1,11 @@
 export type UserStatus = 'Active' | 'Suspended';
 export type Language = 'ar' | 'en';
 
+/** Ids are GUIDs (globally unique — multi-building sync ready, ADR-0003). */
 export interface User {
-  id: number;
-  publicId: string;
-  /** Multi-tenant readiness — populated when the Tenants feature lands. */
-  tenantId: number | null;
+  id: string;
+  /** Multi-tenant: null only for platform-level users (e.g. SuperAdmin). */
+  tenantId: string | null;
   firstName: string;
   lastName: string;
   email: string | null;
@@ -31,14 +31,13 @@ export interface NewUser {
   phoneNumber: string;
   passwordHash: string;
   preferredLanguage: Language;
-  createdBy: number | null;
+  createdBy: string | null;
 }
 
 /** Shape safe to return to clients — never includes the password hash. */
 export interface PublicUser {
-  id: number;
-  publicId: string;
-  tenantId: number | null;
+  id: string;
+  tenantId: string | null;
   firstName: string;
   lastName: string;
   email: string | null;
@@ -55,7 +54,6 @@ export interface PublicUser {
 
 export const toPublicUser = (user: User, roles: string[], permissions: string[]): PublicUser => ({
   id: user.id,
-  publicId: user.publicId,
   tenantId: user.tenantId,
   firstName: user.firstName,
   lastName: user.lastName,

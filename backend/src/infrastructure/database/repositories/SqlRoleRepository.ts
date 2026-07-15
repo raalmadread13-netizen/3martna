@@ -5,7 +5,7 @@ import { execQuery } from '@infrastructure/database/connection';
 export class SqlRoleRepository implements IRoleRepository {
   async findByName(name: string): Promise<Role | null> {
     const rows = await execQuery<{
-      Id: number;
+      Id: string;
       Name: string;
       NameAr: string;
       Description: string | null;
@@ -18,7 +18,7 @@ export class SqlRoleRepository implements IRoleRepository {
       : null;
   }
 
-  async getUserAuthorization(userId: number): Promise<UserAuthorization> {
+  async getUserAuthorization(userId: string): Promise<UserAuthorization> {
     const roleRows = await execQuery<{ Name: string }>(
       `SELECT r.Name
        FROM dbo.UserRoles ur
@@ -40,7 +40,7 @@ export class SqlRoleRepository implements IRoleRepository {
     };
   }
 
-  async assignRoleToUser(userId: number, roleId: number, createdBy: number | null): Promise<void> {
+  async assignRoleToUser(userId: string, roleId: string, createdBy: string | null): Promise<void> {
     // Revive a soft-deleted assignment instead of violating the unique key
     await execQuery(
       `IF EXISTS (SELECT 1 FROM dbo.UserRoles WHERE UserId = @userId AND RoleId = @roleId)
@@ -51,5 +51,17 @@ export class SqlRoleRepository implements IRoleRepository {
          INSERT INTO dbo.UserRoles (UserId, RoleId, CreatedBy) VALUES (@userId, @roleId, @createdBy)`,
       { userId, roleId, createdBy },
     );
+  }
+
+  async anyUserHasRole(roleName: string): Promise<boolean> {
+    const rows = await execQuery(
+      `SELECT TOP 1 1 AS X
+       FROM dbo.UserRoles ur
+       JOIN dbo.Roles r ON r.Id = ur.RoleId AND r.IsDeleted = 0
+       JOIN dbo.Users u ON u.Id = ur.UserId AND u.IsDeleted = 0
+       WHERE r.Name = @roleName AND ur.IsDeleted = 0`,
+      { roleName },
+    );
+    return rows.length > 0;
   }
 }

@@ -1,6 +1,10 @@
 /* ============================================================
-   Seed 0001 — Identity: roles, permissions, default SuperAdmin
+   Seed 0001 — Identity reference data: roles & permissions ONLY.
    Idempotent: safe to run repeatedly.
+
+   ⚠ There is intentionally NO seeded admin account (ADR-0005).
+   The first SuperAdmin is created interactively with:
+       npm run bootstrap:admin
    ============================================================ */
 
 /* ------------------------- ROLES ------------------------- */
@@ -43,22 +47,4 @@ FROM dbo.Roles r
 JOIN dbo.Permissions p ON p.Code = 'profile.manage'
 WHERE NOT EXISTS (SELECT 1 FROM dbo.RolePermissions rp
                   WHERE rp.RoleId = r.Id AND rp.PermissionId = p.Id);
-GO
-
-/* ------------------- DEFAULT SUPERADMIN -------------------
-   Bootstrap account for the pilot. Password: Password123!
-   ⚠ Change this password immediately in any real environment. */
-IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE PhoneNumber = '+962790000001')
-BEGIN
-    INSERT INTO dbo.Users (FirstName, LastName, Email, PhoneNumber, PasswordHash,
-                           PreferredLanguage, EmailVerified, PhoneVerified)
-    VALUES (N'مدير', N'النظام', 'admin@3martna.jo', '+962790000001',
-            '$2b$10$UHJ7nSvCbuxs5GxL/ImjPOAdqy/4I9rN7ZNdkbpJcaM1ZwZ4mWXMe',
-            'ar', 1, 1);
-
-    INSERT INTO dbo.UserRoles (UserId, RoleId)
-    SELECT u.Id, r.Id
-    FROM dbo.Users u, dbo.Roles r
-    WHERE u.PhoneNumber = '+962790000001' AND r.Name = 'SuperAdmin';
-END
 GO

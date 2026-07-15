@@ -81,11 +81,13 @@ describe('LoginUser — brute force protection', () => {
 describe('RefreshSession — rotation & reuse detection', () => {
   let world: TestWorld;
   let refreshToken: string;
+  let userId: string;
 
   beforeEach(async () => {
     world = buildTestWorld();
     const result = await buildContainer(world.deps).registerUser.execute(registerInput);
     refreshToken = result.tokens.refreshToken;
+    userId = result.user.id;
   });
 
   it('rotates: old token is revoked, new token works', async () => {
@@ -108,7 +110,7 @@ describe('RefreshSession — rotation & reuse detection', () => {
     await expect(container.refreshSession.execute(refreshToken, null)).rejects.toMatchObject({
       code: 'INVALID_REFRESH_TOKEN',
     });
-    expect(world.refreshTokens.activeCountFor(1)).toBe(0);
+    expect(world.refreshTokens.activeCountFor(userId)).toBe(0);
     expect(world.auditLogs.actions()).toContain('TOKEN_REUSE_DETECTED');
   });
 
@@ -123,17 +125,17 @@ describe('ChangePassword', () => {
   it('revokes every session after a password change', async () => {
     const world = buildTestWorld();
     const container = buildContainer(world.deps);
-    await container.registerUser.execute(registerInput);
+    const { user } = await container.registerUser.execute(registerInput);
     await container.loginUser.execute({
       identifier: registerInput.phoneNumber,
       password: registerInput.password,
       ip: null,
       userAgent: null,
     });
-    expect(world.refreshTokens.activeCountFor(1)).toBe(2); // register + login
+    expect(world.refreshTokens.activeCountFor(user.id)).toBe(2); // register + login
 
-    await container.changePassword.execute(1, registerInput.password, 'NewPassword456', null);
-    expect(world.refreshTokens.activeCountFor(1)).toBe(0);
+    await container.changePassword.execute(user.id, registerInput.password, 'NewPassword456', null);
+    expect(world.refreshTokens.activeCountFor(user.id)).toBe(0);
 
     // Old password no longer works, new one does
     await expect(
@@ -157,9 +159,9 @@ describe('ChangePassword', () => {
   it('rejects a weak new password', async () => {
     const world = buildTestWorld();
     const container = buildContainer(world.deps);
-    await container.registerUser.execute(registerInput);
+    const { user } = await container.registerUser.execute(registerInput);
     await expect(
-      container.changePassword.execute(1, registerInput.password, 'weak', null),
+      container.changePassword.execute(user.id, registerInput.password, 'weak', null),
     ).rejects.toMatchObject({ code: 'WEAK_PASSWORD' });
   });
 });

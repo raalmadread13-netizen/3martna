@@ -5,5 +5,5 @@ export interface IRefreshTokenRepository {
   findByHash(tokenHash: string): Promise<RefreshToken | null>;
   revoke(tokenHash: string, replacedByTokenHash?: string | null): Promise<void>;
   /** Global sign-out: password change, suspected token theft, account disable. */
-  revokeAllForUser(userId: number): Promise<void>;
+  revokeAllForUser(userId: string): Promise<void>;
 }

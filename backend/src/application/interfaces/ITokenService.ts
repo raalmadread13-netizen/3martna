@@ -1,14 +1,14 @@
 export interface AccessTokenPayload {
-  /** User id. */
-  sub: number;
+  /** User id (GUID). */
+  sub: string;
   /** Display name (for logs/telemetry, not authorization). */
   name: string;
   /** Role names. */
   roles: string[];
   /** Database-driven permission codes resolved at issue time. */
   permissions: string[];
-  /** Multi-tenant readiness — null until the Tenants feature lands. */
-  tenantId: number | null;
+  /** Tenant id (GUID) — null for platform-level users. */
+  tenantId: string | null;
 }
 
 export interface RefreshTokenBundle {

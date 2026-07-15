@@ -11,10 +11,12 @@ export type AuditAction =
   | 'PASSWORD_RESET'
   | 'EMAIL_VERIFIED'
   | 'PHONE_VERIFIED'
-  | 'VERIFICATION_REQUESTED';
+  | 'VERIFICATION_REQUESTED'
+  | 'SUPERADMIN_BOOTSTRAPPED';
 
 export interface NewAuditLog {
-  userId: number | null;
+  userId: string | null;
+  tenantId?: string | null;
   action: AuditAction;
   entityType?: string | null;
   entityId?: string | null;

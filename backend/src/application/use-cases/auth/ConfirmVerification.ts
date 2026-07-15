@@ -18,7 +18,7 @@ export class ConfirmVerification {
     private readonly audit: IAuditLogRepository,
   ) {}
 
-  async execute(userId: number, channel: VerificationChannel, code: string): Promise<void> {
+  async execute(userId: string, channel: VerificationChannel, code: string): Promise<void> {
     const purpose = channel === 'email' ? 'EmailVerify' : 'PhoneVerify';
     const active = await this.codes.findActive(userId, purpose);
     if (!active) throw invalidCode();
