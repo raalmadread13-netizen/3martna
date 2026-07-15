@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 import { Money } from '@domain/common/values/Money';
 
 export interface ServiceProps extends EntityProps {
@@ -17,7 +19,7 @@ export interface ServiceProps extends EntityProps {
  * Aggregate root: a chargeable building service (cleaning, gym, internet…).
  * Scoped to one building, or offered tenant-wide when buildingId is null.
  */
-export class Service extends Entity {
+export class Service extends AggregateRoot {
   readonly buildingId: string | null;
   private _name: string;
   private _nameAr: string | null;
@@ -46,6 +48,7 @@ export class Service extends Entity {
       currency?: string;
     },
     actorId: string | null,
+    clock: IClock,
   ): Service {
     invariant(input.name.trim().length >= 2, 'SERVICE_NAME', 'Service name is required');
     invariant(
@@ -54,7 +57,7 @@ export class Service extends Entity {
       'Monthly fee cannot be negative',
     );
     return new Service({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       buildingId: input.buildingId ?? null,
       name: input.name.trim(),
       nameAr: input.nameAr?.trim() || null,
@@ -85,23 +88,23 @@ export class Service extends Entity {
     return this._isActive;
   }
 
-  setFee(amount: number | null, currency: string, actorId: string | null): void {
+  setFee(amount: number | null, currency: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(amount == null || amount >= 0, 'SERVICE_FEE', 'Monthly fee cannot be negative');
     this._monthlyFee = amount == null ? null : Money.of(amount, currency);
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  deactivate(actorId: string | null): void {
+  deactivate(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     this._isActive = false;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  activate(actorId: string | null): void {
+  activate(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     this._isActive = true;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): ServiceProps {

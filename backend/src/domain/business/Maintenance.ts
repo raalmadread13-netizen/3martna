@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 
 export type MaintenancePriority = 'Low' | 'Medium' | 'High' | 'Emergency';
 export type MaintenanceStatus =
@@ -15,7 +17,7 @@ export interface MaintenanceCategoryProps extends EntityProps {
 }
 
 /** Aggregate root: tenant-configurable request category (lookup). */
-export class MaintenanceCategory extends Entity {
+export class MaintenanceCategory extends AggregateRoot {
   private _name: string;
   private _nameAr: string;
   private _isActive: boolean;
@@ -32,11 +34,12 @@ export class MaintenanceCategory extends Entity {
     name: string,
     nameAr: string,
     actorId: string | null,
+    clock: IClock,
   ): MaintenanceCategory {
     invariant(name.trim().length >= 2, 'CATEGORY_NAME', 'Category name is required');
     invariant(nameAr.trim().length >= 2, 'CATEGORY_NAME_AR', 'Arabic category name is required');
     return new MaintenanceCategory({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       name: name.trim(),
       nameAr: nameAr.trim(),
       isActive: true,
@@ -57,16 +60,16 @@ export class MaintenanceCategory extends Entity {
     return this._isActive;
   }
 
-  deactivate(actorId: string | null): void {
+  deactivate(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     this._isActive = false;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  activate(actorId: string | null): void {
+  activate(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     this._isActive = true;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): MaintenanceCategoryProps {
@@ -113,7 +116,7 @@ const TRANSITIONS: Record<MaintenanceStatus, MaintenanceStatus[]> = {
  * Aggregate root: a maintenance request with an explicit state machine.
  * Every transition is a named business operation — no free status writes.
  */
-export class MaintenanceRequest extends Entity {
+export class MaintenanceRequest extends AggregateRoot {
   readonly buildingId: string;
   readonly apartmentId: string | null;
   readonly categoryId: string;
@@ -161,6 +164,7 @@ export class MaintenanceRequest extends Entity {
       priority?: MaintenancePriority;
     },
     actorId: string | null,
+    clock: IClock,
   ): MaintenanceRequest {
     invariant(
       input.title.trim().length >= 3,
@@ -168,7 +172,7 @@ export class MaintenanceRequest extends Entity {
       'Title must be at least 3 characters',
     );
     return new MaintenanceRequest({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       buildingId: input.buildingId,
       apartmentId: input.apartmentId ?? null,
       categoryId: input.categoryId,
@@ -228,7 +232,7 @@ export class MaintenanceRequest extends Entity {
     return TRANSITIONS[this._status].length === 0;
   }
 
-  private transitionTo(next: MaintenanceStatus, actorId: string | null): void {
+  private transitionTo(next: MaintenanceStatus, actorId: string | null, now: Date): void {
     this.assertNotDeleted();
     invariant(
       TRANSITIONS[this._status].includes(next),
@@ -236,56 +240,63 @@ export class MaintenanceRequest extends Entity {
       `Cannot move request from ${this._status} to ${next}`,
     );
     this._status = next;
-    this.touch(actorId);
+    this.touch(actorId, now);
   }
 
-  assign(employeeId: string, scheduledFor: Date | null, actorId: string | null): void {
-    this.transitionTo('Assigned', actorId);
+  assign(
+    employeeId: string,
+    scheduledFor: Date | null,
+    actorId: string | null,
+    clock: IClock,
+  ): void {
+    this.transitionTo('Assigned', actorId, clock.now());
     this._assignedToEmployeeId = employeeId;
     this._scheduledFor = scheduledFor;
   }
 
-  start(actorId: string | null): void {
+  start(actorId: string | null, clock: IClock): void {
     invariant(this._assignedToEmployeeId, 'REQUEST_UNASSIGNED', 'Request must be assigned first');
-    this.transitionTo('InProgress', actorId);
-    this._startedAt ??= new Date();
+    const now = clock.now();
+    this.transitionTo('InProgress', actorId, now);
+    this._startedAt ??= now;
   }
 
-  hold(actorId: string | null): void {
-    this.transitionTo('OnHold', actorId);
+  hold(actorId: string | null, clock: IClock): void {
+    this.transitionTo('OnHold', actorId, clock.now());
   }
 
-  resume(actorId: string | null): void {
+  resume(actorId: string | null, clock: IClock): void {
     invariant(this._status === 'OnHold', 'REQUEST_NOT_ON_HOLD', 'Request is not on hold');
-    this.transitionTo('InProgress', actorId);
+    this.transitionTo('InProgress', actorId, clock.now());
   }
 
-  complete(notes: string | null, actorId: string | null): void {
-    this.transitionTo('Completed', actorId);
-    this._completedAt = new Date();
+  complete(notes: string | null, actorId: string | null, clock: IClock): void {
+    const now = clock.now();
+    this.transitionTo('Completed', actorId, now);
+    this._completedAt = now;
     this._completionNotes = notes?.trim() || null;
   }
 
-  cancel(actorId: string | null): void {
-    this.transitionTo('Cancelled', actorId);
+  cancel(actorId: string | null, clock: IClock): void {
+    this.transitionTo('Cancelled', actorId, clock.now());
   }
 
-  reject(actorId: string | null): void {
-    this.transitionTo('Rejected', actorId);
+  reject(actorId: string | null, clock: IClock): void {
+    this.transitionTo('Rejected', actorId, clock.now());
   }
 
-  escalate(actorId: string | null): void {
+  escalate(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(!this.isTerminal, 'REQUEST_TERMINAL', 'Cannot escalate a closed request');
     const ladder: MaintenancePriority[] = ['Low', 'Medium', 'High', 'Emergency'];
     const index = ladder.indexOf(this._priority);
     invariant(index < ladder.length - 1, 'REQUEST_MAX_PRIORITY', 'Already at maximum priority');
     this._priority = ladder[index + 1];
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   /** Only the requester rates, only once, only after completion. */
-  rate(byUserId: string, rating: number, comment: string | null): void {
+  rate(byUserId: string, rating: number, comment: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       this._status === 'Completed',
@@ -305,7 +316,7 @@ export class MaintenanceRequest extends Entity {
     );
     this._rating = rating;
     this._ratingComment = comment?.trim() || null;
-    this.touch(byUserId);
+    this.touch(byUserId, clock.now());
   }
 
   toProps(): MaintenanceRequestProps {

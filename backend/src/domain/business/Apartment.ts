@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 
 export type ApartmentStatus =
   'Available' | 'Leased' | 'OwnerOccupied' | 'UnderMaintenance' | 'Reserved';
@@ -33,7 +35,7 @@ const TRANSITIONS: Record<ApartmentStatus, ApartmentStatus[]> = {
  * because apartments are the contention hot-spot (leases, maintenance,
  * visitors all reference them) — other aggregates hold its id only.
  */
-export class Apartment extends Entity {
+export class Apartment extends AggregateRoot {
   readonly buildingId: string;
   readonly floorId: string;
   readonly unitNumber: string;
@@ -75,6 +77,7 @@ export class Apartment extends Entity {
       description?: string | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): Apartment {
     invariant(input.unitNumber.trim().length > 0, 'UNIT_NUMBER', 'Unit number is required');
     const bedrooms = input.bedrooms ?? 1;
@@ -96,7 +99,7 @@ export class Apartment extends Entity {
       'Base rent cannot be negative',
     );
     return new Apartment({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       buildingId: input.buildingId,
       floorId: input.floorId,
       unitNumber: input.unitNumber.trim(),
@@ -143,7 +146,7 @@ export class Apartment extends Entity {
     return this._status === 'Leased' || this._status === 'OwnerOccupied';
   }
 
-  private transitionTo(next: ApartmentStatus, actorId: string | null): void {
+  private transitionTo(next: ApartmentStatus, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       TRANSITIONS[this._status].includes(next),
@@ -151,37 +154,37 @@ export class Apartment extends Entity {
       `Cannot move apartment from ${this._status} to ${next}`,
     );
     this._status = next;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  markLeased(actorId: string | null): void {
-    this.transitionTo('Leased', actorId);
+  markLeased(actorId: string | null, clock: IClock): void {
+    this.transitionTo('Leased', actorId, clock);
   }
-  markOwnerOccupied(actorId: string | null): void {
+  markOwnerOccupied(actorId: string | null, clock: IClock): void {
     invariant(this._ownerId, 'UNIT_NO_OWNER', 'Assign an owner before marking owner-occupied');
-    this.transitionTo('OwnerOccupied', actorId);
+    this.transitionTo('OwnerOccupied', actorId, clock);
   }
-  markAvailable(actorId: string | null): void {
-    this.transitionTo('Available', actorId);
+  markAvailable(actorId: string | null, clock: IClock): void {
+    this.transitionTo('Available', actorId, clock);
   }
-  markUnderMaintenance(actorId: string | null): void {
-    this.transitionTo('UnderMaintenance', actorId);
+  markUnderMaintenance(actorId: string | null, clock: IClock): void {
+    this.transitionTo('UnderMaintenance', actorId, clock);
   }
-  reserve(actorId: string | null): void {
-    this.transitionTo('Reserved', actorId);
+  reserve(actorId: string | null, clock: IClock): void {
+    this.transitionTo('Reserved', actorId, clock);
   }
 
-  assignOwner(ownerId: string, actorId: string | null): void {
+  assignOwner(ownerId: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     this._ownerId = ownerId;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  setBaseRent(amount: number | null, actorId: string | null): void {
+  setBaseRent(amount: number | null, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(amount == null || amount >= 0, 'UNIT_RENT', 'Base rent cannot be negative');
     this._baseRentAmount = amount;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): ApartmentProps {

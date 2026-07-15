@@ -1,6 +1,8 @@
+import { AggregateRoot } from '@domain/common/AggregateRoot';
 import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 
 export type BuildingStatus = 'Active' | 'UnderConstruction' | 'Inactive';
 export type ParkingSpaceType = 'Standard' | 'Covered' | 'Accessible' | 'Visitor';
@@ -32,6 +34,7 @@ export class Floor extends Entity {
     floorNumber: number,
     name: string | null,
     actorId: string | null,
+    clock: IClock,
   ): Floor {
     invariant(
       Number.isInteger(floorNumber) && floorNumber >= -5 && floorNumber <= 200,
@@ -39,7 +42,7 @@ export class Floor extends Entity {
       'Floor number must be between -5 and 200',
     );
     return new Floor({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       buildingId,
       floorNumber,
       name: name?.trim() || null,
@@ -54,10 +57,10 @@ export class Floor extends Entity {
     return this._name;
   }
 
-  rename(name: string | null, actorId: string | null): void {
+  rename(name: string | null, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     this._name = name?.trim() || null;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): FloorProps {
@@ -102,6 +105,7 @@ export class ParkingSpace extends Entity {
     buildingId: string,
     input: { spaceNumber: string; spaceType?: ParkingSpaceType; monthlyFee?: number | null },
     actorId: string | null,
+    clock: IClock,
   ): ParkingSpace {
     invariant(input.spaceNumber.trim().length > 0, 'SPACE_NUMBER', 'Space number is required');
     invariant(
@@ -110,7 +114,7 @@ export class ParkingSpace extends Entity {
       'Monthly fee cannot be negative',
     );
     return new ParkingSpace({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       buildingId,
       spaceNumber: input.spaceNumber.trim(),
       spaceType: input.spaceType ?? 'Standard',
@@ -133,19 +137,19 @@ export class ParkingSpace extends Entity {
     return this._monthlyFee;
   }
 
-  assignToApartment(apartmentId: string, actorId: string | null): void {
+  assignToApartment(apartmentId: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._spaceType !== 'Visitor', 'SPACE_VISITOR', 'Visitor spaces cannot be assigned');
     invariant(!this._apartmentId, 'SPACE_TAKEN', 'Space is already assigned');
     this._apartmentId = apartmentId;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  unassign(actorId: string | null): void {
+  unassign(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._apartmentId, 'SPACE_NOT_ASSIGNED', 'Space is not assigned');
     this._apartmentId = null;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): ParkingSpaceProps {
@@ -192,6 +196,7 @@ export class StorageUnit extends Entity {
     buildingId: string,
     input: { unitNumber: string; areaSqm?: number | null; monthlyFee?: number | null },
     actorId: string | null,
+    clock: IClock,
   ): StorageUnit {
     invariant(input.unitNumber.trim().length > 0, 'STORAGE_NUMBER', 'Unit number is required');
     invariant(input.areaSqm == null || input.areaSqm > 0, 'STORAGE_AREA', 'Area must be positive');
@@ -201,7 +206,7 @@ export class StorageUnit extends Entity {
       'Monthly fee cannot be negative',
     );
     return new StorageUnit({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       buildingId,
       unitNumber: input.unitNumber.trim(),
       areaSqm: input.areaSqm ?? null,
@@ -221,18 +226,18 @@ export class StorageUnit extends Entity {
     return this._monthlyFee;
   }
 
-  assignToApartment(apartmentId: string, actorId: string | null): void {
+  assignToApartment(apartmentId: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(!this._apartmentId, 'STORAGE_TAKEN', 'Unit is already assigned');
     this._apartmentId = apartmentId;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  unassign(actorId: string | null): void {
+  unassign(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._apartmentId, 'STORAGE_NOT_ASSIGNED', 'Unit is not assigned');
     this._apartmentId = null;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): StorageUnitProps {
@@ -268,7 +273,7 @@ export interface BuildingProps extends EntityProps {
  * numbering uniqueness). Apartments are a separate aggregate referenced
  * by id — they have their own lifecycle and heavy contention.
  */
-export class Building extends Entity {
+export class Building extends AggregateRoot {
   private _name: string;
   private _address: string;
   private _city: string;
@@ -310,6 +315,7 @@ export class Building extends Entity {
       notes?: string | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): Building {
     invariant(input.name.trim().length >= 2, 'BUILDING_NAME', 'Name must be at least 2 characters');
     invariant(input.address.trim().length >= 5, 'BUILDING_ADDRESS', 'Address is required');
@@ -336,7 +342,7 @@ export class Building extends Entity {
     );
     return new Building(
       {
-        ...newEntityProps(newId(), tenantId, actorId),
+        ...newEntityProps(newId(), tenantId, actorId, clock.now()),
         name: input.name.trim(),
         address: input.address.trim(),
         city: input.city.trim(),
@@ -391,16 +397,16 @@ export class Building extends Entity {
   }
 
   /** Floors are created only through the aggregate root (unique numbering). */
-  addFloor(floorNumber: number, name: string | null, actorId: string | null): Floor {
+  addFloor(floorNumber: number, name: string | null, actorId: string | null, clock: IClock): Floor {
     this.assertNotDeleted();
     invariant(
       !this._floors.some((floor) => floor.floorNumber === floorNumber && !floor.isDeleted),
       'FLOOR_DUPLICATE',
       `Floor ${floorNumber} already exists in this building`,
     );
-    const floor = Floor.create(this.tenantId, this.id, floorNumber, name, actorId);
+    const floor = Floor.create(this.tenantId, this.id, floorNumber, name, actorId, clock);
     this._floors.push(floor);
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
     return floor;
   }
 
@@ -413,6 +419,7 @@ export class Building extends Entity {
       notes: string | null;
     }>,
     actorId: string | null,
+    clock: IClock,
   ): void {
     this.assertNotDeleted();
     if (changes.name !== undefined) {
@@ -433,26 +440,26 @@ export class Building extends Entity {
     }
     if (changes.district !== undefined) this._district = changes.district?.trim() || null;
     if (changes.notes !== undefined) this._notes = changes.notes?.trim() || null;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  markUnderConstruction(actorId: string | null): void {
+  markUnderConstruction(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     this._status = 'UnderConstruction';
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  activate(actorId: string | null): void {
+  activate(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     this._status = 'Active';
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  deactivate(actorId: string | null): void {
+  deactivate(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._status !== 'Inactive', 'BUILDING_INACTIVE', 'Building is already inactive');
     this._status = 'Inactive';
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): BuildingProps {

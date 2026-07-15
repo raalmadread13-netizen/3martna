@@ -1,6 +1,7 @@
 import { IAuditLogRepository } from '@domain/repositories/IAuditLogRepository';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
 import { IVerificationCodeRepository } from '@domain/repositories/IVerificationCodeRepository';
+import { IClock } from '@domain/common/time/IClock';
 import { generateNumericCode } from '@application/auth/codes';
 import { IEmailSender, ISmsSender } from '@application/interfaces/IMessageSenders';
 import { ITokenService } from '@application/interfaces/ITokenService';
@@ -24,6 +25,7 @@ export class ForgotPassword {
     private readonly sms: ISmsSender,
     private readonly audit: IAuditLogRepository,
     private readonly config: ForgotPasswordConfig,
+    private readonly clock: IClock,
   ) {}
 
   async execute(identifier: string, ip: string | null): Promise<{ devCode?: string }> {
@@ -35,7 +37,7 @@ export class ForgotPassword {
       userId: user.id,
       codeHash: this.tokens.hashToken(code),
       purpose: 'PasswordReset',
-      expiresAt: new Date(Date.now() + this.config.resetTokenTtlMinutes * 60_000),
+      expiresAt: new Date(this.clock.now().getTime() + this.config.resetTokenTtlMinutes * 60_000),
     });
 
     const message = `3martna password reset code: ${code} (valid ${this.config.resetTokenTtlMinutes} min)`;

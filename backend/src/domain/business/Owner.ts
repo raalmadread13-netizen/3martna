@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 
 export type OwnerType = 'Individual' | 'Company';
 
@@ -20,7 +22,7 @@ export interface OwnerProps extends EntityProps {
  * individual or a company. May optionally be linked to an app account
  * (Users) once the owner registers.
  */
-export class Owner extends Entity {
+export class Owner extends AggregateRoot {
   readonly ownerType: OwnerType;
   private _userId: string | null;
   private _fullName: string;
@@ -54,6 +56,7 @@ export class Owner extends Entity {
       address?: string | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): Owner {
     const ownerType = input.ownerType ?? 'Individual';
     invariant(input.fullName.trim().length >= 2, 'OWNER_NAME', 'Owner name is required');
@@ -63,7 +66,7 @@ export class Owner extends Entity {
       'Company owners require a company name',
     );
     return new Owner({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       ownerType,
       userId: null,
       fullName: input.fullName.trim(),
@@ -102,22 +105,23 @@ export class Owner extends Entity {
   }
 
   /** Link this owner to a registered app account (one-time). */
-  linkUser(userId: string, actorId: string | null): void {
+  linkUser(userId: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(!this._userId, 'OWNER_LINKED', 'Owner is already linked to an account');
     this._userId = userId;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   updateContact(
     changes: Partial<{ email: string | null; phoneNumber: string | null; address: string | null }>,
     actorId: string | null,
+    clock: IClock,
   ): void {
     this.assertNotDeleted();
     if (changes.email !== undefined) this._email = changes.email?.trim() || null;
     if (changes.phoneNumber !== undefined) this._phoneNumber = changes.phoneNumber?.trim() || null;
     if (changes.address !== undefined) this._address = changes.address?.trim() || null;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): OwnerProps {

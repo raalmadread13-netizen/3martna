@@ -17,6 +17,7 @@ import { IEmailSender, ISmsSender } from '@application/interfaces/IMessageSender
 import { IPasswordHasher } from '@application/interfaces/IPasswordHasher';
 import { AppDependencies } from '@presentation/http/container';
 import { tokenService } from '@infrastructure/security/JwtTokenService';
+import { systemClock } from '@infrastructure/time/SystemClock';
 
 /* ---------------- users ---------------- */
 
@@ -336,6 +337,7 @@ export const buildTestWorld = (): TestWorld => {
       sms,
       hasher: new FakePasswordHasher(),
       tokens: tokenService,
+      clock: systemClock,
     },
   };
 };

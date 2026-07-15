@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 
 export type ResidencyType = 'OwnerOccupant' | 'LeaseTenant' | 'FamilyMember';
 
@@ -21,7 +23,7 @@ export interface ResidentProps extends EntityProps {
  * Aggregate root: a person living in an apartment. History is kept by
  * closing residencies (moveOut) rather than deleting them.
  */
-export class Resident extends Entity {
+export class Resident extends AggregateRoot {
   readonly apartmentId: string;
   private _userId: string | null;
   private _fullName: string;
@@ -60,6 +62,7 @@ export class Resident extends Entity {
       emergencyContactPhone?: string | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): Resident {
     invariant(input.fullName.trim().length >= 2, 'RESIDENT_NAME', 'Resident name is required');
     invariant(
@@ -68,7 +71,7 @@ export class Resident extends Entity {
       'Valid phone number is required',
     );
     return new Resident({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       apartmentId: input.apartmentId,
       userId: null,
       fullName: input.fullName.trim(),
@@ -105,7 +108,8 @@ export class Resident extends Entity {
     return this._moveOutDate === null && !this.isDeleted;
   }
 
-  moveOut(date: Date, actorId: string | null): void {
+  /** `date` is the business-effective move-out date (may differ from now). */
+  moveOut(date: Date, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(!this._moveOutDate, 'RESIDENT_MOVED_OUT', 'Resident has already moved out');
     invariant(
@@ -114,22 +118,27 @@ export class Resident extends Entity {
       'Move-out date cannot precede move-in date',
     );
     this._moveOutDate = date;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   /** Link this resident to a registered app account (one-time). */
-  linkUser(userId: string, actorId: string | null): void {
+  linkUser(userId: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(!this._userId, 'RESIDENT_LINKED', 'Resident is already linked to an account');
     this._userId = userId;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  setEmergencyContact(name: string | null, phone: string | null, actorId: string | null): void {
+  setEmergencyContact(
+    name: string | null,
+    phone: string | null,
+    actorId: string | null,
+    clock: IClock,
+  ): void {
     this.assertNotDeleted();
     this._emergencyContactName = name?.trim() || null;
     this._emergencyContactPhone = phone?.trim() || null;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): ResidentProps {

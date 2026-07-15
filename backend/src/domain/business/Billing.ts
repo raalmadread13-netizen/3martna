@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 import { Money } from '@domain/common/values/Money';
 
 export type InvoiceType =
@@ -34,7 +36,7 @@ export interface InvoiceProps extends EntityProps {
  * Payment application happens through recordPayment — status is always
  * derived, never written directly.
  */
-export class Invoice extends Entity {
+export class Invoice extends AggregateRoot {
   readonly invoiceNumber: string;
   readonly leaseContractId: string | null;
   readonly apartmentId: string;
@@ -89,6 +91,7 @@ export class Invoice extends Entity {
       notes?: string | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): Invoice {
     invariant(
       input.invoiceNumber.trim().length >= 3,
@@ -119,7 +122,7 @@ export class Invoice extends Entity {
 
     return new Invoice(
       {
-        ...newEntityProps(newId(), tenantId, actorId),
+        ...newEntityProps(newId(), tenantId, actorId, clock.now()),
         invoiceNumber: input.invoiceNumber.trim(),
         leaseContractId: input.leaseContractId ?? null,
         apartmentId: input.apartmentId,
@@ -167,16 +170,16 @@ export class Invoice extends Entity {
   }
 
   /** Draft → Issued: the invoice becomes payable. */
-  issue(actorId: string | null): void {
+  issue(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._status === 'Draft', 'INVOICE_NOT_DRAFT', 'Only draft invoices can be issued');
     invariant(this.total.isPositive(), 'INVOICE_ZERO', 'Cannot issue a zero invoice');
     this._status = 'Issued';
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   /** Apply a confirmed payment amount; derives PartiallyPaid/Paid. */
-  recordPayment(amount: Money, actorId: string | null): void {
+  recordPayment(amount: Money, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       this._status !== 'Draft' && this._status !== 'Cancelled',
@@ -191,11 +194,11 @@ export class Invoice extends Entity {
     );
     this._paidAmount = this._paidAmount.add(amount);
     this._status = this.balance.isZero() ? 'Paid' : 'PartiallyPaid';
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   /** Apply the contractual late fee once the grace period has lapsed. */
-  applyLateFee(fee: Money, actorId: string | null): void {
+  applyLateFee(fee: Money, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       this._status === 'Issued' || this._status === 'Overdue' || this._status === 'PartiallyPaid',
@@ -205,33 +208,30 @@ export class Invoice extends Entity {
     invariant(fee.isPositive(), 'LATE_FEE_AMOUNT', 'Late fee must be positive');
     invariant(this._lateFee.isZero(), 'LATE_FEE_APPLIED', 'A late fee has already been applied');
     this._lateFee = fee;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   /** Issued/PartiallyPaid + past due → Overdue (scheduler use-case). */
-  markOverdue(asOf: Date, actorId: string | null): void {
+  markOverdue(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       this._status === 'Issued' || this._status === 'PartiallyPaid',
       'INVOICE_NOT_PAYABLE',
       'Only issued, unpaid invoices can become overdue',
     );
-    invariant(
-      this.dueDate.getTime() < asOf.getTime(),
-      'INVOICE_NOT_DUE',
-      'Invoice is not past due',
-    );
+    const now = clock.now();
+    invariant(this.dueDate.getTime() < now.getTime(), 'INVOICE_NOT_DUE', 'Invoice is not past due');
     this._status = 'Overdue';
-    this.touch(actorId);
+    this.touch(actorId, now);
   }
 
   /** Cancel — only before any money has been applied. */
-  cancelInvoice(actorId: string | null): void {
+  cancelInvoice(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._status !== 'Paid', 'INVOICE_PAID', 'Paid invoices cannot be cancelled');
     invariant(this._paidAmount.isZero(), 'INVOICE_HAS_PAYMENTS', 'Invoice already has payments');
     this._status = 'Cancelled';
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): InvoiceProps {
@@ -274,7 +274,7 @@ export interface PaymentProps extends EntityProps {
  * Aggregate root: money received against an invoice. Financial records
  * are append-only — a wrong payment is Rejected, never deleted.
  */
-export class Payment extends Entity {
+export class Payment extends AggregateRoot {
   readonly invoiceId: string;
   readonly method: PaymentMethod;
   readonly referenceNumber: string | null;
@@ -309,6 +309,7 @@ export class Payment extends Entity {
       notes?: string | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): Payment {
     const amount = Money.of(input.amount, input.currency ?? 'JOD');
     invariant(amount.isPositive(), 'PAYMENT_AMOUNT', 'Payment amount must be positive');
@@ -317,15 +318,16 @@ export class Payment extends Entity {
       'PAYMENT_REFERENCE',
       'Bank transfers require a reference number',
     );
+    const now = clock.now();
     return new Payment({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, now),
       invoiceId: input.invoiceId,
       amount: amount.amount,
       currency: amount.currency,
       method: input.method,
       referenceNumber: input.referenceNumber?.trim() || null,
       status: 'Pending',
-      paidAt: input.paidAt ?? new Date(),
+      paidAt: input.paidAt ?? now,
       receivedByUserId: input.receivedByUserId ?? null,
       notes: input.notes?.trim() || null,
     });
@@ -345,7 +347,7 @@ export class Payment extends Entity {
     return this._notes;
   }
 
-  confirm(actorId: string | null): void {
+  confirm(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       this._status === 'Pending',
@@ -353,10 +355,10 @@ export class Payment extends Entity {
       'Only pending payments can be confirmed',
     );
     this._status = 'Confirmed';
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  reject(reason: string | null, actorId: string | null): void {
+  reject(reason: string | null, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       this._status === 'Pending',
@@ -365,7 +367,7 @@ export class Payment extends Entity {
     );
     this._status = 'Rejected';
     if (reason) this._notes = reason.trim();
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): PaymentProps {

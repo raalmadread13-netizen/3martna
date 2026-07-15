@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 
 export type TenantStatus = 'Active' | 'Suspended';
 
@@ -19,7 +21,7 @@ export interface TenantProps extends EntityProps {
  *
  * Note: Tenant itself is the boundary, so its `tenantId` equals its own id.
  */
-export class Tenant extends Entity {
+export class Tenant extends AggregateRoot {
   private _name: string;
   private _legalName: string | null;
   private _contactEmail: string | null;
@@ -43,6 +45,7 @@ export class Tenant extends Entity {
       contactPhone?: string | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): Tenant {
     invariant(
       input.name.trim().length >= 2,
@@ -51,7 +54,7 @@ export class Tenant extends Entity {
     );
     const id = newId();
     return new Tenant({
-      ...newEntityProps(id, id, actorId), // a tenant belongs to itself
+      ...newEntityProps(id, id, actorId, clock.now()), // a tenant belongs to itself
       name: input.name.trim(),
       legalName: input.legalName?.trim() || null,
       contactEmail: input.contactEmail?.trim() || null,
@@ -83,14 +86,14 @@ export class Tenant extends Entity {
     return this._status === 'Active' && !this.isDeleted;
   }
 
-  rename(name: string, actorId: string | null): void {
+  rename(name: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(name.trim().length >= 2, 'TENANT_NAME', 'Tenant name must be at least 2 characters');
     this._name = name.trim();
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  suspend(actorId: string | null): void {
+  suspend(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       this._status === 'Active',
@@ -98,14 +101,14 @@ export class Tenant extends Entity {
       'Only active tenants can be suspended',
     );
     this._status = 'Suspended';
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  reactivate(actorId: string | null): void {
+  reactivate(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._status === 'Suspended', 'TENANT_NOT_SUSPENDED', 'Tenant is not suspended');
     this._status = 'Active';
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): TenantProps {

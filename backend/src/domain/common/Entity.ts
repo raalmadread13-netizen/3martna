@@ -4,6 +4,10 @@ import { DomainError } from './DomainError';
  * Base of every business entity (Sprint 3 standard columns):
  * GUID id, TenantId, audit stamps, soft delete, optimistic concurrency.
  * Pure TypeScript — no ORM, no framework.
+ *
+ * Time is injected (ADR-0007): `touch`, `softDelete` and `newEntityProps`
+ * take an explicit `now: Date` supplied by the caller's `IClock`. Entities
+ * never read the wall clock.
  */
 export interface EntityProps {
   id: string;
@@ -21,11 +25,12 @@ export const newEntityProps = (
   id: string,
   tenantId: string,
   createdBy: string | null,
+  now: Date,
 ): EntityProps => ({
   id,
   tenantId,
-  createdAt: new Date(),
-  updatedAt: new Date(),
+  createdAt: now,
+  updatedAt: now,
   createdBy,
   updatedBy: createdBy,
   isDeleted: false,
@@ -65,18 +70,18 @@ export abstract class Entity {
   }
 
   /** Stamp modification metadata. Called by every mutating domain method. */
-  protected touch(byUserId: string | null): void {
-    this._updatedAt = new Date();
+  protected touch(byUserId: string | null, now: Date): void {
+    this._updatedAt = now;
     this._updatedBy = byUserId;
   }
 
   /** Soft delete — rows are never physically removed. */
-  softDelete(byUserId: string | null): void {
+  softDelete(byUserId: string | null, now: Date): void {
     if (this._isDeleted) {
       throw new DomainError('ALREADY_DELETED', 'Entity is already deleted');
     }
     this._isDeleted = true;
-    this.touch(byUserId);
+    this.touch(byUserId, now);
   }
 
   protected assertNotDeleted(): void {

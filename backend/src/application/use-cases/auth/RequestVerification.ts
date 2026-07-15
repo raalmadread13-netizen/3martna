@@ -1,6 +1,7 @@
 import { IAuditLogRepository } from '@domain/repositories/IAuditLogRepository';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
 import { IVerificationCodeRepository } from '@domain/repositories/IVerificationCodeRepository';
+import { IClock } from '@domain/common/time/IClock';
 import { generateNumericCode } from '@application/auth/codes';
 import { IEmailSender, ISmsSender } from '@application/interfaces/IMessageSenders';
 import { ITokenService } from '@application/interfaces/ITokenService';
@@ -24,6 +25,7 @@ export class RequestVerification {
     private readonly sms: ISmsSender,
     private readonly audit: IAuditLogRepository,
     private readonly config: VerificationConfig,
+    private readonly clock: IClock,
   ) {}
 
   async execute(userId: string, channel: VerificationChannel): Promise<{ devCode?: string }> {
@@ -44,7 +46,7 @@ export class RequestVerification {
       userId,
       codeHash: this.tokens.hashToken(code),
       purpose: channel === 'email' ? 'EmailVerify' : 'PhoneVerify',
-      expiresAt: new Date(Date.now() + this.config.codeTtlMinutes * 60_000),
+      expiresAt: new Date(this.clock.now().getTime() + this.config.codeTtlMinutes * 60_000),
     });
 
     const message = `3martna verification code: ${code} (valid ${this.config.codeTtlMinutes} min)`;

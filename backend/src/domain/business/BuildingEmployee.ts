@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 
 export type EmployeePosition =
   'Manager' | 'Maintenance' | 'Security' | 'Cleaning' | 'Concierge' | 'Other';
@@ -18,7 +20,7 @@ export interface BuildingEmployeeProps extends EntityProps {
  * given role. An assignment with no endedOn is currently active; ending it
  * preserves history rather than deleting the row.
  */
-export class BuildingEmployee extends Entity {
+export class BuildingEmployee extends AggregateRoot {
   readonly buildingId: string;
   readonly userId: string;
   readonly position: EmployeePosition;
@@ -43,13 +45,15 @@ export class BuildingEmployee extends Entity {
       hiredOn?: Date | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): BuildingEmployee {
+    const now = clock.now();
     return new BuildingEmployee({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, now),
       buildingId: input.buildingId,
       userId: input.userId,
       position: input.position,
-      hiredOn: input.hiredOn ?? new Date(),
+      hiredOn: input.hiredOn ?? now,
       endedOn: null,
     });
   }
@@ -65,7 +69,8 @@ export class BuildingEmployee extends Entity {
     return this._endedOn === null && !this.isDeleted;
   }
 
-  end(on: Date, actorId: string | null): void {
+  /** `on` is the business-effective end date (may differ from now). */
+  end(on: Date, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._endedOn === null, 'EMPLOYEE_ENDED', 'Assignment has already ended');
     invariant(
@@ -74,7 +79,7 @@ export class BuildingEmployee extends Entity {
       'End date cannot precede the hire date',
     );
     this._endedOn = on;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): BuildingEmployeeProps {

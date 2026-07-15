@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 
 export interface ActivityLogProps extends EntityProps {
   actorUserId: string | null;
@@ -17,7 +19,7 @@ export interface ActivityLogProps extends EntityProps {
  * tenant). Distinct from the security AuditLog (migration 0001): this is
  * user-visible product history. Append-only — created, never mutated.
  */
-export class ActivityLog extends Entity {
+export class ActivityLog extends AggregateRoot {
   readonly actorUserId: string | null;
   readonly action: string;
   readonly entityType: string | null;
@@ -49,18 +51,20 @@ export class ActivityLog extends Entity {
       occurredAt?: Date;
     },
     actorId: string | null,
+    clock: IClock,
   ): ActivityLog {
     invariant(input.action.trim().length > 0, 'ACTIVITY_ACTION', 'Action is required');
     invariant(input.summary.trim().length > 0, 'ACTIVITY_SUMMARY', 'Summary is required');
+    const now = clock.now();
     return new ActivityLog({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, now),
       actorUserId: input.actorUserId ?? null,
       action: input.action.trim(),
       entityType: input.entityType ?? null,
       entityId: input.entityId ?? null,
       summary: input.summary.trim(),
       metadata: input.metadata ?? null,
-      occurredAt: input.occurredAt ?? new Date(),
+      occurredAt: input.occurredAt ?? now,
     });
   }
 

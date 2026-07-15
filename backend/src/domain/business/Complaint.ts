@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 
 export type ComplaintCategory =
   'Noise' | 'Cleanliness' | 'Security' | 'Neighbor' | 'Staff' | 'Facility' | 'Parking' | 'Other';
@@ -32,7 +34,7 @@ const TRANSITIONS: Record<ComplaintStatus, ComplaintStatus[]> = {
  * Aggregate root: a resident complaint. Anonymous complaints never carry
  * a submitter id (enforced here and by CK_Complaints_Anonymous).
  */
-export class Complaint extends Entity {
+export class Complaint extends AggregateRoot {
   readonly buildingId: string;
   readonly apartmentId: string | null;
   readonly submittedByUserId: string | null;
@@ -72,11 +74,12 @@ export class Complaint extends Entity {
       description?: string | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): Complaint {
     invariant(input.subject.trim().length >= 3, 'COMPLAINT_SUBJECT', 'Subject is required');
     const isAnonymous = input.isAnonymous ?? false;
     return new Complaint({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       buildingId: input.buildingId,
       apartmentId: input.apartmentId ?? null,
       // Anonymity is enforced: no submitter id is ever stored
@@ -115,7 +118,7 @@ export class Complaint extends Entity {
     return this._resolvedAt;
   }
 
-  private transitionTo(next: ComplaintStatus, actorId: string | null): void {
+  private transitionTo(next: ComplaintStatus, actorId: string | null, now: Date): void {
     this.assertNotDeleted();
     invariant(
       TRANSITIONS[this._status].includes(next),
@@ -123,39 +126,41 @@ export class Complaint extends Entity {
       `Cannot move complaint from ${this._status} to ${next}`,
     );
     this._status = next;
-    this.touch(actorId);
+    this.touch(actorId, now);
   }
 
-  startReview(actorId: string | null): void {
-    this.transitionTo('InReview', actorId);
+  startReview(actorId: string | null, clock: IClock): void {
+    this.transitionTo('InReview', actorId, clock.now());
   }
 
-  escalate(actorId: string | null): void {
-    this.transitionTo('Escalated', actorId);
+  escalate(actorId: string | null, clock: IClock): void {
+    this.transitionTo('Escalated', actorId, clock.now());
   }
 
-  resolve(resolution: string, byUserId: string, actorId: string | null): void {
+  resolve(resolution: string, byUserId: string, actorId: string | null, clock: IClock): void {
     invariant(
       resolution.trim().length >= 3,
       'COMPLAINT_RESOLUTION',
       'A resolution note is required',
     );
-    this.transitionTo('Resolved', actorId);
+    const now = clock.now();
+    this.transitionTo('Resolved', actorId, now);
     this._resolution = resolution.trim();
     this._resolvedByUserId = byUserId;
-    this._resolvedAt = new Date();
+    this._resolvedAt = now;
   }
 
-  dismiss(reason: string, byUserId: string, actorId: string | null): void {
+  dismiss(reason: string, byUserId: string, actorId: string | null, clock: IClock): void {
     invariant(
       reason.trim().length >= 3,
       'COMPLAINT_DISMISS_REASON',
       'A dismissal reason is required',
     );
-    this.transitionTo('Dismissed', actorId);
+    const now = clock.now();
+    this.transitionTo('Dismissed', actorId, now);
     this._resolution = reason.trim();
     this._resolvedByUserId = byUserId;
-    this._resolvedAt = new Date();
+    this._resolvedAt = now;
   }
 
   toProps(): ComplaintProps {

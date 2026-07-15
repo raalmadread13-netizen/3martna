@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 
 export type AnnouncementAudience = 'All' | 'Residents' | 'Owners' | 'Staff';
 export type NotificationCategory =
@@ -22,7 +24,7 @@ export interface AnnouncementProps extends EntityProps {
  * Aggregate root: a broadcast message. Scope is a single building, or the
  * whole tenant when buildingId is null.
  */
-export class Announcement extends Entity {
+export class Announcement extends AggregateRoot {
   readonly buildingId: string | null;
   private _title: string;
   private _body: string;
@@ -54,17 +56,19 @@ export class Announcement extends Entity {
       expiresAt?: Date | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): Announcement {
     invariant(input.title.trim().length >= 3, 'ANNOUNCEMENT_TITLE', 'Title is required');
     invariant(input.body.trim().length >= 3, 'ANNOUNCEMENT_BODY', 'Body is required');
-    const publishedAt = input.publishedAt ?? new Date();
+    const now = clock.now();
+    const publishedAt = input.publishedAt ?? now;
     invariant(
       input.expiresAt == null || input.expiresAt.getTime() > publishedAt.getTime(),
       'ANNOUNCEMENT_EXPIRY',
       'Expiry must be after the publish time',
     );
     return new Announcement({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, now),
       buildingId: input.buildingId ?? null,
       title: input.title.trim(),
       body: input.body.trim(),
@@ -95,24 +99,28 @@ export class Announcement extends Entity {
     return this._expiresAt;
   }
 
-  isVisible(asOf: Date = new Date()): boolean {
+  isVisible(asOf: Date): boolean {
     return (
       !this.isDeleted && (this._expiresAt === null || this._expiresAt.getTime() > asOf.getTime())
     );
   }
 
-  pin(actorId: string | null): void {
+  pin(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     this._isPinned = true;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
-  unpin(actorId: string | null): void {
+  unpin(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     this._isPinned = false;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  edit(changes: Partial<{ title: string; body: string }>, actorId: string | null): void {
+  edit(
+    changes: Partial<{ title: string; body: string }>,
+    actorId: string | null,
+    clock: IClock,
+  ): void {
     this.assertNotDeleted();
     if (changes.title !== undefined) {
       invariant(changes.title.trim().length >= 3, 'ANNOUNCEMENT_TITLE', 'Title is required');
@@ -122,7 +130,7 @@ export class Announcement extends Entity {
       invariant(changes.body.trim().length >= 3, 'ANNOUNCEMENT_BODY', 'Body is required');
       this._body = changes.body.trim();
     }
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): AnnouncementProps {
@@ -153,7 +161,7 @@ export interface NotificationProps extends EntityProps {
 }
 
 /** Aggregate root: an in-app notification delivered to one user. */
-export class Notification extends Entity {
+export class Notification extends AggregateRoot {
   readonly recipientUserId: string;
   readonly title: string;
   readonly body: string | null;
@@ -186,10 +194,11 @@ export class Notification extends Entity {
       relatedEntityId?: string | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): Notification {
     invariant(input.title.trim().length > 0, 'NOTIFICATION_TITLE', 'Title is required');
     return new Notification({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       recipientUserId: input.recipientUserId,
       title: input.title.trim(),
       body: input.body?.trim() || null,
@@ -212,12 +221,13 @@ export class Notification extends Entity {
     return this._readAt;
   }
 
-  markRead(actorId: string | null): void {
+  markRead(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     if (this._isRead) return; // idempotent
+    const now = clock.now();
     this._isRead = true;
-    this._readAt = new Date();
-    this.touch(actorId);
+    this._readAt = now;
+    this.touch(actorId, now);
   }
 
   toProps(): NotificationProps {

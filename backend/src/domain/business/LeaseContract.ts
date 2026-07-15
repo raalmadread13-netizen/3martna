@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 import { DateRange } from '@domain/common/values/DateRange';
 import { Money } from '@domain/common/values/Money';
 
@@ -35,7 +37,7 @@ export interface LeaseContractProps extends EntityProps {
  * repository checks in the application layer) and physically by the
  * filtered unique index UQ_LeaseContracts_ActivePerApartment.
  */
-export class LeaseContract extends Entity {
+export class LeaseContract extends AggregateRoot {
   readonly contractNumber: string;
   readonly apartmentId: string;
   readonly ownerId: string;
@@ -86,6 +88,7 @@ export class LeaseContract extends Entity {
       graceDays?: number;
     },
     actorId: string | null,
+    clock: IClock,
   ): LeaseContract {
     invariant(
       input.contractNumber.trim().length >= 3,
@@ -107,7 +110,7 @@ export class LeaseContract extends Entity {
     );
 
     return new LeaseContract({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       contractNumber: input.contractNumber.trim(),
       apartmentId: input.apartmentId,
       ownerId: input.ownerId,
@@ -159,23 +162,23 @@ export class LeaseContract extends Entity {
   }
 
   /** Draft → Active. The application layer must first verify no other active lease exists. */
-  activate(actorId: string | null): void {
+  activate(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._status === 'Draft', 'LEASE_NOT_DRAFT', 'Only draft leases can be activated');
     this._status = 'Active';
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   /** Draft → Cancelled (never took effect). */
-  cancel(actorId: string | null): void {
+  cancel(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._status === 'Draft', 'LEASE_NOT_DRAFT', 'Only draft leases can be cancelled');
     this._status = 'Cancelled';
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  /** Active → Terminated (ended early, with a reason). */
-  terminate(reason: string, at: Date, actorId: string | null): void {
+  /** Active → Terminated (ended early, with a reason). Effective now. */
+  terminate(reason: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       this._status === 'Active',
@@ -187,27 +190,29 @@ export class LeaseContract extends Entity {
       'LEASE_TERMINATION_REASON',
       'A termination reason is required',
     );
+    const now = clock.now();
     this._status = 'Terminated';
-    this._terminatedAt = at;
+    this._terminatedAt = now;
     this._terminationReason = reason.trim();
-    this.touch(actorId);
+    this.touch(actorId, now);
   }
 
-  /** Active → Expired (end date passed). Called by the scheduler use-case. */
-  expire(asOf: Date, actorId: string | null): void {
+  /** Active → Expired once the end date has passed (scheduler use-case). */
+  expire(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._status === 'Active', 'LEASE_NOT_ACTIVE', 'Only active leases can expire');
+    const now = clock.now();
     invariant(
-      this._endDate.getTime() <= asOf.getTime(),
+      this._endDate.getTime() <= now.getTime(),
       'LEASE_NOT_ENDED',
       'Lease end date has not passed yet',
     );
     this._status = 'Expired';
-    this.touch(actorId);
+    this.touch(actorId, now);
   }
 
   /** Extend an active lease (renewal in place). */
-  extend(newEndDate: Date, actorId: string | null): void {
+  extend(newEndDate: Date, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._status === 'Active', 'LEASE_NOT_ACTIVE', 'Only active leases can be extended');
     invariant(
@@ -216,10 +221,10 @@ export class LeaseContract extends Entity {
       'New end date must be after the current end date',
     );
     this._endDate = newEndDate;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  isCurrent(asOf: Date = new Date()): boolean {
+  isCurrent(asOf: Date): boolean {
     return this._status === 'Active' && this.period.contains(asOf);
   }
 

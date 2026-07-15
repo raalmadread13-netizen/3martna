@@ -1,6 +1,7 @@
 import { PublicUser, toPublicUser } from '@domain/entities/User';
 import { IAuditLogRepository } from '@domain/repositories/IAuditLogRepository';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
+import { IClock } from '@domain/common/time/IClock';
 import { TokenIssuer, TokenPair } from '@application/auth/TokenIssuer';
 import { IPasswordHasher } from '@application/interfaces/IPasswordHasher';
 import { AppError } from '@shared/errors/AppError';
@@ -31,6 +32,7 @@ export class LoginUser {
     private readonly issuer: TokenIssuer,
     private readonly audit: IAuditLogRepository,
     private readonly lockout: LockoutConfig,
+    private readonly clock: IClock,
   ) {}
 
   async execute(input: LoginInput): Promise<{ user: PublicUser; tokens: TokenPair }> {
@@ -43,7 +45,7 @@ export class LoginUser {
       throw invalidCredentials();
     }
 
-    if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+    if (user.lockedUntil && user.lockedUntil.getTime() > this.clock.now().getTime()) {
       throw new AppError(429, 'Too many attempts — try again later', 'ACCOUNT_LOCKED');
     }
 

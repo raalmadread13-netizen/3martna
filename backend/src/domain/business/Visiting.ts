@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 import { DateRange } from '@domain/common/values/DateRange';
 
 export type VisitorAccessStatus =
@@ -19,11 +21,11 @@ export interface VisitorProps extends EntityProps {
 }
 
 /**
- * Aggregate root: a person a resident expects. Owns its VisitorAccess
- * passes (the gate-facing lifecycle) — passes are created only through
- * the visitor.
+ * Aggregate root: a person a resident expects. A VisitorAccess pass (the
+ * gate-facing lifecycle) is its own aggregate; `issueAccess` is a factory
+ * helper that stamps the visitor's tenant onto the new pass.
  */
-export class Visitor extends Entity {
+export class Visitor extends AggregateRoot {
   readonly apartmentId: string;
   readonly hostUserId: string;
   private _fullName: string;
@@ -55,10 +57,11 @@ export class Visitor extends Entity {
       purpose?: string | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): Visitor {
     invariant(input.fullName.trim().length >= 2, 'VISITOR_NAME', 'Visitor name is required');
     return new Visitor({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       apartmentId: input.apartmentId,
       hostUserId: input.hostUserId,
       fullName: input.fullName.trim(),
@@ -73,11 +76,12 @@ export class Visitor extends Entity {
     return new Visitor(props);
   }
 
-  /** Issue a time-boxed access pass for this visitor. */
+  /** Issue a time-boxed access pass for this visitor (separate aggregate). */
   issueAccess(
     window: { validFrom: Date; validUntil: Date },
     preApproved: boolean,
     actorId: string | null,
+    clock: IClock,
   ): VisitorAccess {
     this.assertNotDeleted();
     return VisitorAccess.issue(
@@ -89,6 +93,7 @@ export class Visitor extends Entity {
         preApproved,
       },
       actorId,
+      clock,
     );
   }
 
@@ -141,7 +146,7 @@ export interface VisitorAccessProps extends EntityProps {
  * Aggregate root: a single gate pass carrying a QR access code and a
  * validity window, with a strict check-in/out lifecycle.
  */
-export class VisitorAccess extends Entity {
+export class VisitorAccess extends AggregateRoot {
   readonly visitorId: string;
   readonly accessCode: string;
   readonly validFrom: Date;
@@ -171,10 +176,11 @@ export class VisitorAccess extends Entity {
     tenantId: string,
     input: { visitorId: string; validFrom: Date; validUntil: Date; preApproved: boolean },
     actorId: string | null,
+    clock: IClock,
   ): VisitorAccess {
     DateRange.of(input.validFrom, input.validUntil); // validates window ordering
     return new VisitorAccess({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       visitorId: input.visitorId,
       accessCode: newId(), // GUID QR payload
       validFrom: input.validFrom,
@@ -208,7 +214,7 @@ export class VisitorAccess extends Entity {
     return this._approvedByUserId;
   }
 
-  approve(byUserId: string, actorId: string | null): void {
+  approve(byUserId: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       this._status === 'Pending',
@@ -217,10 +223,10 @@ export class VisitorAccess extends Entity {
     );
     this._status = 'Approved';
     this._approvedByUserId = byUserId;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  deny(byUserId: string, actorId: string | null): void {
+  deny(byUserId: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       this._status === 'Pending',
@@ -229,10 +235,10 @@ export class VisitorAccess extends Entity {
     );
     this._status = 'Denied';
     this._approvedByUserId = byUserId;
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
-  cancel(actorId: string | null): void {
+  cancel(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       this._status === 'Pending' || this._status === 'Approved',
@@ -240,44 +246,47 @@ export class VisitorAccess extends Entity {
       'Only pending or approved passes can be cancelled',
     );
     this._status = 'Cancelled';
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   /** Guard scans the QR at the gate. Validates approval and the time window. */
-  checkIn(guardUserId: string, at: Date, actorId: string | null): void {
+  checkIn(guardUserId: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._status === 'Approved', 'ACCESS_NOT_APPROVED', 'Pass is not approved');
-    invariant(this.window.contains(at), 'ACCESS_OUTSIDE_WINDOW', 'Outside the valid time window');
+    const now = clock.now();
+    invariant(this.window.contains(now), 'ACCESS_OUTSIDE_WINDOW', 'Outside the valid time window');
     this._status = 'CheckedIn';
-    this._checkedInAt = at;
+    this._checkedInAt = now;
     this._checkedInByUserId = guardUserId;
-    this.touch(actorId);
+    this.touch(actorId, now);
   }
 
-  checkOut(guardUserId: string, at: Date, actorId: string | null): void {
+  checkOut(guardUserId: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(this._status === 'CheckedIn', 'ACCESS_NOT_CHECKED_IN', 'Visitor is not checked in');
+    const now = clock.now();
     this._status = 'CheckedOut';
-    this._checkedOutAt = at;
+    this._checkedOutAt = now;
     this._checkedOutByUserId = guardUserId;
-    this.touch(actorId);
+    this.touch(actorId, now);
   }
 
   /** Approved/Pending pass whose window elapsed → Expired (scheduler). */
-  expire(asOf: Date, actorId: string | null): void {
+  expire(actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(
       this._status === 'Pending' || this._status === 'Approved',
       'ACCESS_NOT_EXPIRABLE',
       'Only pending or approved passes can expire',
     );
+    const now = clock.now();
     invariant(
-      this.validUntil.getTime() <= asOf.getTime(),
+      this.validUntil.getTime() <= now.getTime(),
       'ACCESS_NOT_ELAPSED',
       'Window has not elapsed',
     );
     this._status = 'Expired';
-    this.touch(actorId);
+    this.touch(actorId, now);
   }
 
   toProps(): VisitorAccessProps {

@@ -1,6 +1,8 @@
-import { Entity, EntityProps, newEntityProps } from '@domain/common/Entity';
+import { AggregateRoot } from '@domain/common/AggregateRoot';
+import { EntityProps, newEntityProps } from '@domain/common/Entity';
 import { invariant } from '@domain/common/DomainError';
 import { newId } from '@domain/common/identity';
+import { IClock } from '@domain/common/time/IClock';
 
 export type DocumentCategory =
   'LeaseContract' | 'Identity' | 'Invoice' | 'Receipt' | 'Policy' | 'Other';
@@ -23,7 +25,7 @@ export interface AttachmentProps extends EntityProps {
  * (entityType, entityId); binaries live in Firebase Storage, only the URL
  * is stored here.
  */
-export class Attachment extends Entity {
+export class Attachment extends AggregateRoot {
   readonly entityType: string;
   readonly entityId: string;
   readonly fileName: string;
@@ -55,6 +57,7 @@ export class Attachment extends Entity {
       uploadedByUserId: string;
     },
     actorId: string | null,
+    clock: IClock,
   ): Attachment {
     invariant(input.entityType.trim().length > 0, 'ATTACH_ENTITY_TYPE', 'Entity type is required');
     invariant(input.fileName.trim().length > 0, 'ATTACH_FILENAME', 'File name is required');
@@ -65,7 +68,7 @@ export class Attachment extends Entity {
       'File size must be positive',
     );
     return new Attachment({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       entityType: input.entityType.trim(),
       entityId: input.entityId,
       fileName: input.fileName.trim(),
@@ -114,7 +117,7 @@ export interface DocumentProps extends EntityProps {
  * with version chaining. A new version is a new aggregate pointing back at
  * its predecessor via previousDocumentId.
  */
-export class Document extends Entity {
+export class Document extends AggregateRoot {
   readonly category: DocumentCategory;
   private _title: string;
   readonly fileUrl: string;
@@ -153,11 +156,12 @@ export class Document extends Entity {
       apartmentId?: string | null;
     },
     actorId: string | null,
+    clock: IClock,
   ): Document {
     invariant(input.title.trim().length > 0, 'DOCUMENT_TITLE', 'Title is required');
     invariant(/^https?:\/\//.test(input.fileUrl), 'DOCUMENT_URL', 'A valid file URL is required');
     return new Document({
-      ...newEntityProps(newId(), tenantId, actorId),
+      ...newEntityProps(newId(), tenantId, actorId, clock.now()),
       category: input.category,
       title: input.title.trim(),
       fileUrl: input.fileUrl,
@@ -183,11 +187,12 @@ export class Document extends Entity {
   newVersion(
     input: { fileUrl: string; contentType: string; sizeBytes?: number | null; title?: string },
     actorId: string | null,
+    clock: IClock,
   ): Document {
     this.assertNotDeleted();
     invariant(/^https?:\/\//.test(input.fileUrl), 'DOCUMENT_URL', 'A valid file URL is required');
     return new Document({
-      ...newEntityProps(newId(), this.tenantId, actorId),
+      ...newEntityProps(newId(), this.tenantId, actorId, clock.now()),
       category: this.category,
       title: (input.title ?? this._title).trim(),
       fileUrl: input.fileUrl,
@@ -201,11 +206,11 @@ export class Document extends Entity {
     });
   }
 
-  rename(title: string, actorId: string | null): void {
+  rename(title: string, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(title.trim().length > 0, 'DOCUMENT_TITLE', 'Title is required');
     this._title = title.trim();
-    this.touch(actorId);
+    this.touch(actorId, clock.now());
   }
 
   toProps(): DocumentProps {

@@ -31,7 +31,8 @@ export class DateRange {
     return this.start.getTime() < other.end.getTime() && other.start.getTime() < this.end.getTime();
   }
 
-  isPast(asOf: Date = new Date()): boolean {
+  /** Whether the range has fully elapsed as of the given instant (from IClock). */
+  isPast(asOf: Date): boolean {
     return this.end.getTime() <= asOf.getTime();
   }
 

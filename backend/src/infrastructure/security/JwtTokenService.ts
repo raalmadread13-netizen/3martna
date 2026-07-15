@@ -5,14 +5,21 @@ import {
   ITokenService,
   RefreshTokenBundle,
 } from '@application/interfaces/ITokenService';
+import { IClock } from '@domain/common/time/IClock';
+import { systemClock } from '@infrastructure/time/SystemClock';
 import { env } from '@shared/config/env';
 
 /**
  * JWT access tokens + opaque rotating refresh tokens.
  * Refresh tokens are 256-bit random values; only their SHA-256 hash is
  * ever persisted, so a database leak cannot be replayed.
+ *
+ * The clock is injected (ADR-0007); refresh-token expiry derives from it,
+ * never from the wall clock directly.
  */
 export class JwtTokenService implements ITokenService {
+  constructor(private readonly clock: IClock = systemClock) {}
+
   signAccessToken(payload: AccessTokenPayload): string {
     return jwt.sign({ ...payload, type: 'access' }, env.jwt.accessSecret, {
       expiresIn: env.jwt.accessExpires,
@@ -36,7 +43,9 @@ export class JwtTokenService implements ITokenService {
     return {
       token,
       hash: this.hashToken(token),
-      expiresAt: new Date(Date.now() + env.jwt.refreshExpiresDays * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(
+        this.clock.now().getTime() + env.jwt.refreshExpiresDays * 24 * 60 * 60 * 1000,
+      ),
     };
   }
 

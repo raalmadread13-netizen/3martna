@@ -3,6 +3,7 @@ import { IRefreshTokenRepository } from '@domain/repositories/IRefreshTokenRepos
 import { IRoleRepository } from '@domain/repositories/IRoleRepository';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
 import { IVerificationCodeRepository } from '@domain/repositories/IVerificationCodeRepository';
+import { IClock } from '@domain/common/time/IClock';
 import { TokenIssuer } from '@application/auth/TokenIssuer';
 import { IEmailSender, ISmsSender } from '@application/interfaces/IMessageSenders';
 import { IPasswordHasher } from '@application/interfaces/IPasswordHasher';
@@ -25,6 +26,7 @@ import { SqlVerificationCodeRepository } from '@infrastructure/database/reposito
 import { ConsoleEmailSender, ConsoleSmsSender } from '@infrastructure/messaging/consoleSenders';
 import { passwordHasher } from '@infrastructure/security/BcryptPasswordHasher';
 import { tokenService } from '@infrastructure/security/JwtTokenService';
+import { systemClock } from '@infrastructure/time/SystemClock';
 import { env } from '@shared/config/env';
 
 /** Everything the presentation layer needs, resolved once. */
@@ -38,6 +40,7 @@ export interface AppDependencies {
   sms: ISmsSender;
   hasher: IPasswordHasher;
   tokens: ITokenService;
+  clock: IClock;
 }
 
 export interface AppContainer {
@@ -60,16 +63,24 @@ export const buildContainer = (deps: AppDependencies): AppContainer => {
 
   return {
     registerUser: new RegisterUser(deps.users, deps.roles, deps.hasher, issuer, deps.auditLogs),
-    loginUser: new LoginUser(deps.users, deps.hasher, issuer, deps.auditLogs, {
-      maxFailedLogins: env.auth.maxFailedLogins,
-      lockoutMinutes: env.auth.lockoutMinutes,
-    }),
+    loginUser: new LoginUser(
+      deps.users,
+      deps.hasher,
+      issuer,
+      deps.auditLogs,
+      {
+        maxFailedLogins: env.auth.maxFailedLogins,
+        lockoutMinutes: env.auth.lockoutMinutes,
+      },
+      deps.clock,
+    ),
     refreshSession: new RefreshSession(
       deps.users,
       deps.roles,
       deps.refreshTokens,
       deps.tokens,
       deps.auditLogs,
+      deps.clock,
     ),
     logoutUser: new LogoutUser(deps.refreshTokens, deps.tokens, deps.auditLogs),
     changePassword: new ChangePassword(deps.users, deps.hasher, deps.refreshTokens, deps.auditLogs),
@@ -81,6 +92,7 @@ export const buildContainer = (deps: AppDependencies): AppContainer => {
       deps.sms,
       deps.auditLogs,
       { resetTokenTtlMinutes: env.auth.resetTokenTtlMinutes, revealCodes },
+      deps.clock,
     ),
     resetPassword: new ResetPassword(
       deps.users,
@@ -98,6 +110,7 @@ export const buildContainer = (deps: AppDependencies): AppContainer => {
       deps.sms,
       deps.auditLogs,
       { codeTtlMinutes: env.auth.verificationCodeTtlMinutes, revealCodes },
+      deps.clock,
     ),
     confirmVerification: new ConfirmVerification(
       deps.users,
@@ -119,6 +132,7 @@ const defaultDependencies = (): AppDependencies => ({
   sms: new ConsoleSmsSender(),
   hasher: passwordHasher,
   tokens: tokenService,
+  clock: systemClock,
 });
 
 let instance: AppContainer | null = null;

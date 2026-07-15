@@ -2,6 +2,7 @@ import { IAuditLogRepository } from '@domain/repositories/IAuditLogRepository';
 import { IRefreshTokenRepository } from '@domain/repositories/IRefreshTokenRepository';
 import { IRoleRepository } from '@domain/repositories/IRoleRepository';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
+import { IClock } from '@domain/common/time/IClock';
 import { TokenPair } from '@application/auth/TokenIssuer';
 import { ITokenService } from '@application/interfaces/ITokenService';
 import { AppError } from '@shared/errors/AppError';
@@ -21,6 +22,7 @@ export class RefreshSession {
     private readonly refreshTokens: IRefreshTokenRepository,
     private readonly tokens: ITokenService,
     private readonly audit: IAuditLogRepository,
+    private readonly clock: IClock,
   ) {}
 
   async execute(refreshToken: string, ip: string | null): Promise<TokenPair> {
@@ -38,7 +40,7 @@ export class RefreshSession {
       });
       throw invalidToken();
     }
-    if (record.expiresAt.getTime() <= Date.now()) throw invalidToken();
+    if (record.expiresAt.getTime() <= this.clock.now().getTime()) throw invalidToken();
 
     const user = await this.users.findById(record.userId);
     if (!user || user.isDeleted || user.status !== 'Active') throw invalidToken();

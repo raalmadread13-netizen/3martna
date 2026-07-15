@@ -1,3 +1,4 @@
+import { IClock } from '@domain/common/time/IClock';
 import { isDatabaseConnected } from '@infrastructure/database/connection';
 
 export interface HealthStatus {
@@ -16,6 +17,8 @@ export interface DetailedHealthStatus extends HealthStatus {
  * (presentation → application → infrastructure) end to end.
  */
 export class GetHealthStatus {
+  constructor(private readonly clock: IClock) {}
+
   execute(): HealthStatus {
     return { status: 'ok' };
   }
@@ -24,7 +27,7 @@ export class GetHealthStatus {
     return {
       status: 'ok',
       uptimeSeconds: Math.round(process.uptime()),
-      timestamp: new Date().toISOString(),
+      timestamp: this.clock.now().toISOString(),
       database: dbConfigured
         ? isDatabaseConnected()
           ? 'connected'
