@@ -85,6 +85,27 @@ export interface CreateApartmentDto {
   description?: string | null;
 }
 
+export interface UpdateApartmentDto {
+  bedrooms?: number;
+  bathrooms?: number;
+  areaSqm?: number | null;
+  baseRentAmount?: number | null;
+  description?: string | null;
+  /** Target status — the domain state machine validates the transition. */
+  status?: string;
+  /** Assign (or keep) the owning Owner; validated against the tenant. */
+  ownerId?: string;
+}
+
+export interface CreateFloorDto {
+  floorNumber: number;
+  name?: string | null;
+}
+
+export interface UpdateFloorDto {
+  name: string | null;
+}
+
 export interface OwnerDto {
   id: string;
   tenantId: string;
@@ -97,6 +118,25 @@ export interface OwnerDto {
   phoneNumber: string | null;
   address: string | null;
   createdAt: string;
+}
+
+export interface CreateOwnerDto {
+  ownerType?: string;
+  fullName: string;
+  companyName?: string | null;
+  nationalIdOrRegistration?: string | null;
+  email?: string | null;
+  phoneNumber?: string | null;
+  address?: string | null;
+}
+
+export interface UpdateOwnerDto {
+  fullName?: string;
+  companyName?: string | null;
+  nationalIdOrRegistration?: string | null;
+  email?: string | null;
+  phoneNumber?: string | null;
+  address?: string | null;
 }
 
 export interface ResidentDto {

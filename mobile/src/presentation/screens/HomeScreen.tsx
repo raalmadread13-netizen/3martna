@@ -6,22 +6,42 @@ import { Screen } from '@/presentation/components/ui/Screen';
 import { RootScreenProps } from '@/presentation/navigation/types';
 import { radius, spacing } from '@/presentation/theme/colors';
 import { useTheme } from '@/presentation/theme/ThemeProvider';
+import { hasPermission } from '@/shared/utils/permissions';
 
-/** Empty home — dashboards land here in the feature sprints. */
+/** Home hub — module entry points appear as their sprints land. */
 export const HomeScreen = ({ navigation }: RootScreenProps<'Home'>): React.JSX.Element => {
   const { colors } = useTheme();
   const { user } = useAuth();
 
+  const canSeeBuildings = hasPermission(user, 'buildings.read');
+  const canSeeApartments = hasPermission(user, 'apartments.read');
+  const canSeeOwners = hasPermission(user, 'owners.read');
+
   return (
-    <Screen>
+    <Screen scroll>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.title, { color: colors.text }]}>أهلاً {user?.firstName} 👋</Text>
         <Text style={[styles.body, { color: colors.textMuted }]}>
-          You're signed in as {user?.roles.join(', ')}. Dashboards, rent, maintenance and visitor
-          features arrive in the next sprints.
+          You're signed in as {user?.roles.join(', ')}. Rent, maintenance and visitor features
+          arrive in the next sprints.
         </Text>
       </View>
-      <AppButton title="Profile" onPress={() => navigation.navigate('Profile')} />
+
+      {canSeeBuildings ? (
+        <AppButton title="Buildings" onPress={() => navigation.navigate('Buildings')} />
+      ) : null}
+      {canSeeApartments ? (
+        <AppButton title="Apartments" onPress={() => navigation.navigate('Apartments')} />
+      ) : null}
+      {canSeeOwners ? (
+        <AppButton title="Owners" onPress={() => navigation.navigate('Owners')} />
+      ) : null}
+
+      <AppButton
+        title="Profile"
+        variant="secondary"
+        onPress={() => navigation.navigate('Profile')}
+      />
       <AppButton
         title="Settings"
         variant="secondary"

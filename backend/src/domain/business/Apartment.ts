@@ -180,6 +180,55 @@ export class Apartment extends AggregateRoot {
     this.touch(actorId, clock.now());
   }
 
+  /** Edit descriptive attributes — same invariants as `create`. */
+  updateDetails(
+    changes: Partial<{
+      bedrooms: number;
+      bathrooms: number;
+      areaSqm: number | null;
+      baseRentAmount: number | null;
+      description: string | null;
+    }>,
+    actorId: string | null,
+    clock: IClock,
+  ): void {
+    this.assertNotDeleted();
+    if (changes.bedrooms !== undefined) {
+      invariant(
+        Number.isInteger(changes.bedrooms) && changes.bedrooms >= 0 && changes.bedrooms <= 20,
+        'UNIT_BEDROOMS',
+        'Bedrooms must be between 0 and 20',
+      );
+      this._bedrooms = changes.bedrooms;
+    }
+    if (changes.bathrooms !== undefined) {
+      invariant(
+        Number.isInteger(changes.bathrooms) && changes.bathrooms >= 0 && changes.bathrooms <= 20,
+        'UNIT_BATHROOMS',
+        'Bathrooms must be between 0 and 20',
+      );
+      this._bathrooms = changes.bathrooms;
+    }
+    if (changes.areaSqm !== undefined) {
+      invariant(
+        changes.areaSqm == null || changes.areaSqm > 0,
+        'UNIT_AREA',
+        'Area must be positive',
+      );
+      this._areaSqm = changes.areaSqm;
+    }
+    if (changes.baseRentAmount !== undefined) {
+      invariant(
+        changes.baseRentAmount == null || changes.baseRentAmount >= 0,
+        'UNIT_RENT',
+        'Base rent cannot be negative',
+      );
+      this._baseRentAmount = changes.baseRentAmount;
+    }
+    if (changes.description !== undefined) this._description = changes.description?.trim() || null;
+    this.touch(actorId, clock.now());
+  }
+
   setBaseRent(amount: number | null, actorId: string | null, clock: IClock): void {
     this.assertNotDeleted();
     invariant(amount == null || amount >= 0, 'UNIT_RENT', 'Base rent cannot be negative');

@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { Apartment, Building, Owner } from '@/domain/entities/Property';
 
 /** Route params for the root stack. Extended per feature sprint. */
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- React Navigation requires a type alias (implicit index signature)
@@ -13,6 +14,16 @@ export type RootStackParamList = {
   Home: undefined;
   Profile: undefined;
   Settings: undefined;
+  // Sprint 4 — Building & Apartment Management
+  Buildings: undefined;
+  BuildingDetails: { id: string };
+  BuildingForm: { building?: Building };
+  Apartments: { buildingId?: string } | undefined;
+  ApartmentDetails: { id: string };
+  ApartmentForm: { apartment?: Apartment; buildingId?: string };
+  Owners: undefined;
+  OwnerDetails: { id: string };
+  OwnerForm: { owner?: Owner };
 };
 
 export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<

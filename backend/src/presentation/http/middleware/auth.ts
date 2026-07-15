@@ -62,6 +62,25 @@ export const requirePermission =
     next(AppError.forbidden());
   };
 
+/**
+ * Tenant-scoped endpoints require the caller to belong to a tenant. The
+ * tenantId is read from the verified token only — never from client input —
+ * so downstream code can trust req.user.tenantId as the isolation boundary.
+ * Platform-level accounts (tenantId = null) must be assigned to a tenant
+ * before they can manage tenant data.
+ */
+export const requireTenant = (req: Request, _res: Response, next: NextFunction): void => {
+  if (!req.user) {
+    next(AppError.unauthorized());
+    return;
+  }
+  if (!req.user.tenantId) {
+    next(AppError.forbidden('This operation requires a tenant context', 'TENANT_CONTEXT_REQUIRED'));
+    return;
+  }
+  next();
+};
+
 /** Role-based guard — kept for coarse checks; prefer requirePermission. */
 export const authorize =
   (...roles: string[]) =>

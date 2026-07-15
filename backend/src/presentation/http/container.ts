@@ -3,6 +3,11 @@ import { IRefreshTokenRepository } from '@domain/repositories/IRefreshTokenRepos
 import { IRoleRepository } from '@domain/repositories/IRoleRepository';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
 import { IVerificationCodeRepository } from '@domain/repositories/IVerificationCodeRepository';
+import {
+  IApartmentRepository,
+  IBuildingRepository,
+  IOwnerRepository,
+} from '@domain/repositories/business/property.repositories';
 import { IClock } from '@domain/common/time/IClock';
 import { TokenIssuer } from '@application/auth/TokenIssuer';
 import { IEmailSender, ISmsSender } from '@application/interfaces/IMessageSenders';
@@ -18,7 +23,31 @@ import { RefreshSession } from '@application/use-cases/auth/RefreshSession';
 import { RegisterUser } from '@application/use-cases/auth/RegisterUser';
 import { RequestVerification } from '@application/use-cases/auth/RequestVerification';
 import { ResetPassword } from '@application/use-cases/auth/ResetPassword';
+import {
+  ArchiveApartment,
+  CreateApartment,
+  GetApartment,
+  ListApartments,
+  UpdateApartment,
+} from '@application/use-cases/property/ApartmentUseCases';
+import {
+  ArchiveBuilding,
+  CreateBuilding,
+  GetBuilding,
+  ListBuildings,
+  UpdateBuilding,
+} from '@application/use-cases/property/BuildingUseCases';
+import { AddFloor, ListFloors, UpdateFloor } from '@application/use-cases/property/FloorUseCases';
+import {
+  CreateOwner,
+  GetOwner,
+  ListOwners,
+  UpdateOwner,
+} from '@application/use-cases/property/OwnerUseCases';
+import { SqlApartmentRepository } from '@infrastructure/database/repositories/SqlApartmentRepository';
 import { SqlAuditLogRepository } from '@infrastructure/database/repositories/SqlAuditLogRepository';
+import { SqlBuildingRepository } from '@infrastructure/database/repositories/SqlBuildingRepository';
+import { SqlOwnerRepository } from '@infrastructure/database/repositories/SqlOwnerRepository';
 import { SqlRefreshTokenRepository } from '@infrastructure/database/repositories/SqlRefreshTokenRepository';
 import { SqlRoleRepository } from '@infrastructure/database/repositories/SqlRoleRepository';
 import { SqlUserRepository } from '@infrastructure/database/repositories/SqlUserRepository';
@@ -41,6 +70,9 @@ export interface AppDependencies {
   hasher: IPasswordHasher;
   tokens: ITokenService;
   clock: IClock;
+  buildings: IBuildingRepository;
+  apartments: IApartmentRepository;
+  owners: IOwnerRepository;
 }
 
 export interface AppContainer {
@@ -54,6 +86,24 @@ export interface AppContainer {
   requestVerification: RequestVerification;
   confirmVerification: ConfirmVerification;
   getCurrentUser: GetCurrentUser;
+  // Sprint 4 — Building & Apartment Management
+  createBuilding: CreateBuilding;
+  updateBuilding: UpdateBuilding;
+  archiveBuilding: ArchiveBuilding;
+  getBuilding: GetBuilding;
+  listBuildings: ListBuildings;
+  addFloor: AddFloor;
+  updateFloor: UpdateFloor;
+  listFloors: ListFloors;
+  createApartment: CreateApartment;
+  updateApartment: UpdateApartment;
+  archiveApartment: ArchiveApartment;
+  getApartment: GetApartment;
+  listApartments: ListApartments;
+  createOwner: CreateOwner;
+  updateOwner: UpdateOwner;
+  getOwner: GetOwner;
+  listOwners: ListOwners;
 }
 
 /** Composition root: wires use-cases to concrete dependencies. */
@@ -119,6 +169,34 @@ export const buildContainer = (deps: AppDependencies): AppContainer => {
       deps.auditLogs,
     ),
     getCurrentUser: new GetCurrentUser(deps.users, deps.roles),
+    // Sprint 4 — property module
+    createBuilding: new CreateBuilding(deps.buildings, deps.auditLogs, deps.clock),
+    updateBuilding: new UpdateBuilding(deps.buildings, deps.auditLogs, deps.clock),
+    archiveBuilding: new ArchiveBuilding(
+      deps.buildings,
+      deps.apartments,
+      deps.auditLogs,
+      deps.clock,
+    ),
+    getBuilding: new GetBuilding(deps.buildings),
+    listBuildings: new ListBuildings(deps.buildings),
+    addFloor: new AddFloor(deps.buildings, deps.auditLogs, deps.clock),
+    updateFloor: new UpdateFloor(deps.buildings, deps.auditLogs, deps.clock),
+    listFloors: new ListFloors(deps.buildings),
+    createApartment: new CreateApartment(
+      deps.apartments,
+      deps.buildings,
+      deps.auditLogs,
+      deps.clock,
+    ),
+    updateApartment: new UpdateApartment(deps.apartments, deps.owners, deps.auditLogs, deps.clock),
+    archiveApartment: new ArchiveApartment(deps.apartments, deps.auditLogs, deps.clock),
+    getApartment: new GetApartment(deps.apartments),
+    listApartments: new ListApartments(deps.apartments),
+    createOwner: new CreateOwner(deps.owners, deps.auditLogs, deps.clock),
+    updateOwner: new UpdateOwner(deps.owners, deps.auditLogs, deps.clock),
+    getOwner: new GetOwner(deps.owners),
+    listOwners: new ListOwners(deps.owners),
   };
 };
 
@@ -133,6 +211,9 @@ const defaultDependencies = (): AppDependencies => ({
   hasher: passwordHasher,
   tokens: tokenService,
   clock: systemClock,
+  buildings: new SqlBuildingRepository(),
+  apartments: new SqlApartmentRepository(),
+  owners: new SqlOwnerRepository(),
 });
 
 let instance: AppContainer | null = null;

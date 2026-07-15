@@ -18,6 +18,11 @@ import { IPasswordHasher } from '@application/interfaces/IPasswordHasher';
 import { AppDependencies } from '@presentation/http/container';
 import { tokenService } from '@infrastructure/security/JwtTokenService';
 import { systemClock } from '@infrastructure/time/SystemClock';
+import {
+  InMemoryApartmentRepository,
+  InMemoryBuildingRepository,
+  InMemoryOwnerRepository,
+} from './fakes.property';
 
 /* ---------------- users ---------------- */
 
@@ -127,7 +132,7 @@ export class InMemoryRoleRepository implements IRoleRepository {
     description: null,
   }));
 
-  /** roleName → permission codes (mirrors the seed: SuperAdmin gets all). */
+  /** roleName → permission codes (mirrors seeds 0001 + 0002: SuperAdmin gets all). */
   readonly rolePermissions: Record<string, string[]> = {
     SuperAdmin: [
       'users.read',
@@ -136,9 +141,23 @@ export class InMemoryRoleRepository implements IRoleRepository {
       'roles.manage',
       'audit.read',
       'profile.manage',
+      'buildings.read',
+      'buildings.manage',
+      'apartments.read',
+      'apartments.manage',
+      'owners.read',
+      'owners.manage',
     ],
-    BuildingManager: ['profile.manage'],
-    Resident: ['profile.manage'],
+    BuildingManager: [
+      'profile.manage',
+      'buildings.read',
+      'buildings.manage',
+      'apartments.read',
+      'apartments.manage',
+      'owners.read',
+      'owners.manage',
+    ],
+    Resident: ['profile.manage', 'buildings.read', 'apartments.read'],
     MaintenanceEmployee: ['profile.manage'],
     SecurityGuard: ['profile.manage'],
   };
@@ -309,6 +328,9 @@ export interface TestWorld {
   auditLogs: InMemoryAuditLogRepository;
   email: CapturingEmailSender;
   sms: CapturingSmsSender;
+  buildings: InMemoryBuildingRepository;
+  apartments: InMemoryApartmentRepository;
+  owners: InMemoryOwnerRepository;
 }
 
 export const buildTestWorld = (): TestWorld => {
@@ -319,6 +341,9 @@ export const buildTestWorld = (): TestWorld => {
   const auditLogs = new InMemoryAuditLogRepository();
   const email = new CapturingEmailSender();
   const sms = new CapturingSmsSender();
+  const buildings = new InMemoryBuildingRepository();
+  const apartments = new InMemoryApartmentRepository();
+  const owners = new InMemoryOwnerRepository();
   return {
     users,
     roles,
@@ -327,6 +352,9 @@ export const buildTestWorld = (): TestWorld => {
     auditLogs,
     email,
     sms,
+    buildings,
+    apartments,
+    owners,
     deps: {
       users,
       roles,
@@ -338,6 +366,9 @@ export const buildTestWorld = (): TestWorld => {
       hasher: new FakePasswordHasher(),
       tokens: tokenService,
       clock: systemClock,
+      buildings,
+      apartments,
+      owners,
     },
   };
 };

@@ -12,7 +12,18 @@ export type AuditAction =
   | 'EMAIL_VERIFIED'
   | 'PHONE_VERIFIED'
   | 'VERIFICATION_REQUESTED'
-  | 'SUPERADMIN_BOOTSTRAPPED';
+  | 'SUPERADMIN_BOOTSTRAPPED'
+  // Sprint 4 — Building & Apartment Management
+  | 'BUILDING_CREATED'
+  | 'BUILDING_UPDATED'
+  | 'BUILDING_ARCHIVED'
+  | 'FLOOR_ADDED'
+  | 'FLOOR_UPDATED'
+  | 'APARTMENT_CREATED'
+  | 'APARTMENT_UPDATED'
+  | 'APARTMENT_ARCHIVED'
+  | 'OWNER_CREATED'
+  | 'OWNER_UPDATED';
 
 export interface NewAuditLog {
   userId: string | null;

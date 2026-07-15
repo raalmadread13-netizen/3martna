@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import { DomainError } from '@domain/common/DomainError';
 import { logger } from '@infrastructure/logging/logger';
 import { env } from '@shared/config/env';
 import { AppError } from '@shared/errors/AppError';
@@ -18,7 +19,9 @@ export const errorHandler = (
   const error =
     err instanceof AppError
       ? err
-      : AppError.internal(env.isProduction ? 'Internal server error' : err.message);
+      : err instanceof DomainError
+        ? new AppError(422, err.message, err.code) // business invariant violated
+        : AppError.internal(env.isProduction ? 'Internal server error' : err.message);
 
   if (error.statusCode >= 500) {
     logger.error(err.message, { stack: err.stack, path: req.originalUrl, method: req.method });

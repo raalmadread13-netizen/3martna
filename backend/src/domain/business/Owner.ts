@@ -124,6 +124,35 @@ export class Owner extends AggregateRoot {
     this.touch(actorId, clock.now());
   }
 
+  /** Edit identity attributes — same invariants as `create`. */
+  updateDetails(
+    changes: Partial<{
+      fullName: string;
+      companyName: string | null;
+      nationalIdOrRegistration: string | null;
+    }>,
+    actorId: string | null,
+    clock: IClock,
+  ): void {
+    this.assertNotDeleted();
+    if (changes.fullName !== undefined) {
+      invariant(changes.fullName.trim().length >= 2, 'OWNER_NAME', 'Owner name is required');
+      this._fullName = changes.fullName.trim();
+    }
+    if (changes.companyName !== undefined) {
+      invariant(
+        this.ownerType !== 'Company' || (changes.companyName?.trim().length ?? 0) >= 2,
+        'OWNER_COMPANY',
+        'Company owners require a company name',
+      );
+      this._companyName = changes.companyName?.trim() || null;
+    }
+    if (changes.nationalIdOrRegistration !== undefined) {
+      this._nationalIdOrRegistration = changes.nationalIdOrRegistration?.trim() || null;
+    }
+    this.touch(actorId, clock.now());
+  }
+
   toProps(): OwnerProps {
     return {
       ...this.entityProps(),
