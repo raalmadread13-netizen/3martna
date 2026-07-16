@@ -18,6 +18,7 @@ import { IPasswordHasher } from '@application/interfaces/IPasswordHasher';
 import { AppDependencies } from '@presentation/http/container';
 import { tokenService } from '@infrastructure/security/JwtTokenService';
 import { systemClock } from '@infrastructure/time/SystemClock';
+import { InMemoryDashboardRepository } from './fakes.dashboard';
 import {
   InMemoryIdempotencyStore,
   InMemoryLeaseContractRepository,
@@ -159,6 +160,7 @@ export class InMemoryRoleRepository implements IRoleRepository {
       'leases.manage',
       'occupancy.read',
       'occupancy.manage',
+      'dashboard.read',
     ],
     BuildingManager: [
       'profile.manage',
@@ -174,6 +176,7 @@ export class InMemoryRoleRepository implements IRoleRepository {
       'leases.manage',
       'occupancy.read',
       'occupancy.manage',
+      'dashboard.read',
     ],
     Resident: ['profile.manage', 'buildings.read', 'apartments.read'],
     MaintenanceEmployee: ['profile.manage'],
@@ -353,6 +356,7 @@ export interface TestWorld {
   leases: InMemoryLeaseContractRepository;
   occupancies: InMemoryOccupancyRepository;
   idempotency: InMemoryIdempotencyStore;
+  dashboard: InMemoryDashboardRepository;
 }
 
 export const buildTestWorld = (): TestWorld => {
@@ -370,6 +374,14 @@ export const buildTestWorld = (): TestWorld => {
   const leases = new InMemoryLeaseContractRepository();
   const occupancies = new InMemoryOccupancyRepository();
   const idempotency = new InMemoryIdempotencyStore();
+  const dashboard = new InMemoryDashboardRepository(
+    buildings,
+    apartments,
+    owners,
+    residents,
+    leases,
+    occupancies,
+  );
   return {
     users,
     roles,
@@ -385,6 +397,7 @@ export const buildTestWorld = (): TestWorld => {
     leases,
     occupancies,
     idempotency,
+    dashboard,
     deps: {
       users,
       roles,
@@ -403,6 +416,7 @@ export const buildTestWorld = (): TestWorld => {
       leases,
       occupancies,
       idempotency,
+      dashboard,
     },
   };
 };

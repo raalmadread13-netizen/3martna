@@ -211,6 +211,27 @@ export class InMemoryLeaseContractRepository implements ILeaseContractRepository
       .map((l) => LeaseContract.restore({ ...l }));
   }
 
+  async listActiveEndingBetween(tenantId: string, from: Date, to: Date): Promise<LeaseContract[]> {
+    return this.alive(tenantId)
+      .filter(
+        (l) =>
+          l.status === 'Active' &&
+          l.endDate.getTime() > from.getTime() &&
+          l.endDate.getTime() <= to.getTime(),
+      )
+      .map((l) => LeaseContract.restore({ ...l }));
+  }
+
+  async listExpired(tenantId: string, asOf: Date): Promise<LeaseContract[]> {
+    return this.alive(tenantId)
+      .filter(
+        (l) =>
+          l.status === 'Expired' ||
+          (l.status === 'Active' && l.endDate.getTime() <= asOf.getTime()),
+      )
+      .map((l) => LeaseContract.restore({ ...l }));
+  }
+
   async findPage(tenantId: string, page: PageRequest): Promise<PageResult<LeaseContract>> {
     const rows = this.alive(tenantId).sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
     return pageOf(rows, page, (props) => LeaseContract.restore({ ...props }));

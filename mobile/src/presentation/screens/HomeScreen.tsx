@@ -13,6 +13,7 @@ export const HomeScreen = ({ navigation }: RootScreenProps<'Home'>): React.JSX.E
   const { colors } = useTheme();
   const { user } = useAuth();
 
+  const canSeeDashboard = hasPermission(user, 'dashboard.read');
   const canSeeBuildings = hasPermission(user, 'buildings.read');
   const canSeeApartments = hasPermission(user, 'apartments.read');
   const canSeeOwners = hasPermission(user, 'owners.read');
@@ -30,6 +31,9 @@ export const HomeScreen = ({ navigation }: RootScreenProps<'Home'>): React.JSX.E
         </Text>
       </View>
 
+      {canSeeDashboard ? (
+        <AppButton title="Dashboard" onPress={() => navigation.navigate('Dashboard')} />
+      ) : null}
       {canSeeBuildings ? (
         <AppButton title="Buildings" onPress={() => navigation.navigate('Buildings')} />
       ) : null}

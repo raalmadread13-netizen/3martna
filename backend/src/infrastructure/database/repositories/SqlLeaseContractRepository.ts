@@ -238,6 +238,28 @@ export class SqlLeaseContractRepository implements ILeaseContractRepository {
     };
   }
 
+  async listActiveEndingBetween(tenantId: string, from: Date, to: Date): Promise<LeaseContract[]> {
+    const rows = await execQuery<LeaseRow>(
+      `SELECT ${COLUMNS} FROM dbo.LeaseContracts
+       WHERE TenantId = @tenantId AND Status = 'Active' AND IsDeleted = 0
+         AND EndDate > @from AND EndDate <= @to
+       ORDER BY EndDate`,
+      { tenantId, from, to },
+    );
+    return rows.map((row) => LeaseContract.restore(toProps(row)));
+  }
+
+  async listExpired(tenantId: string, asOf: Date): Promise<LeaseContract[]> {
+    const rows = await execQuery<LeaseRow>(
+      `SELECT ${COLUMNS} FROM dbo.LeaseContracts
+       WHERE TenantId = @tenantId AND IsDeleted = 0
+         AND (Status = 'Expired' OR (Status = 'Active' AND EndDate <= @asOf))
+       ORDER BY EndDate DESC`,
+      { tenantId, asOf },
+    );
+    return rows.map((row) => LeaseContract.restore(toProps(row)));
+  }
+
   async listActiveEndedBefore(tenantId: string, asOf: Date): Promise<LeaseContract[]> {
     const rows = await execQuery<LeaseRow>(
       `SELECT ${COLUMNS} FROM dbo.LeaseContracts

@@ -42,6 +42,10 @@ export interface ILeaseContractRepository extends ITenantRepository<LeaseContrac
   ): Promise<PageResult<LeaseContract>>;
   /** Active leases whose end date has passed (expiry job). */
   listActiveEndedBefore(tenantId: string, asOf: Date): Promise<LeaseContract[]>;
+  /** Active leases ending inside (from, to] — the "expiring soon" alert. */
+  listActiveEndingBetween(tenantId: string, from: Date, to: Date): Promise<LeaseContract[]>;
+  /** Ended leases: Status Expired, or Active past their end date (alert). */
+  listExpired(tenantId: string, asOf: Date): Promise<LeaseContract[]>;
 }
 
 export interface IInvoiceRepository extends ITenantRepository<Invoice> {

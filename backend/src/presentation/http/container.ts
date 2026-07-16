@@ -3,6 +3,7 @@ import { IRefreshTokenRepository } from '@domain/repositories/IRefreshTokenRepos
 import { IRoleRepository } from '@domain/repositories/IRoleRepository';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
 import { IVerificationCodeRepository } from '@domain/repositories/IVerificationCodeRepository';
+import { IDashboardRepository } from '@domain/repositories/business/dashboard.repositories';
 import { ILeaseContractRepository } from '@domain/repositories/business/leasing.repositories';
 import { IOccupancyRepository } from '@domain/repositories/business/occupancy.repositories';
 import {
@@ -67,9 +68,16 @@ import {
   RegisterResident,
   UpdateResident,
 } from '@application/use-cases/occupancy/ResidentUseCases';
+import {
+  GetBuildingSummaries,
+  GetDashboardSummary,
+  GetLeaseAlerts,
+  GetRecentActivity,
+} from '@application/use-cases/dashboard/DashboardUseCases';
 import { SqlApartmentRepository } from '@infrastructure/database/repositories/SqlApartmentRepository';
 import { SqlAuditLogRepository } from '@infrastructure/database/repositories/SqlAuditLogRepository';
 import { SqlBuildingRepository } from '@infrastructure/database/repositories/SqlBuildingRepository';
+import { SqlDashboardRepository } from '@infrastructure/database/repositories/SqlDashboardRepository';
 import { SqlIdempotencyStore } from '@infrastructure/database/repositories/SqlIdempotencyStore';
 import { SqlLeaseContractRepository } from '@infrastructure/database/repositories/SqlLeaseContractRepository';
 import { SqlOccupancyRepository } from '@infrastructure/database/repositories/SqlOccupancyRepository';
@@ -104,6 +112,7 @@ export interface AppDependencies {
   leases: ILeaseContractRepository;
   occupancies: IOccupancyRepository;
   idempotency: IIdempotencyStore;
+  dashboard: IDashboardRepository;
 }
 
 export interface AppContainer {
@@ -151,6 +160,11 @@ export interface AppContainer {
   listOccupancyHistory: ListOccupancyHistory;
   /** Exposed for the Idempotency-Key middleware. */
   idempotencyStore: IIdempotencyStore;
+  // Sprint 6 — Admin Dashboard report services
+  getDashboardSummary: GetDashboardSummary;
+  getBuildingSummaries: GetBuildingSummaries;
+  getLeaseAlerts: GetLeaseAlerts;
+  getRecentActivity: GetRecentActivity;
 }
 
 /** Composition root: wires use-cases to concrete dependencies. */
@@ -285,6 +299,11 @@ export const buildContainer = (deps: AppDependencies): AppContainer => {
     getOccupancy: new GetOccupancy(deps.occupancies),
     listOccupancyHistory: new ListOccupancyHistory(deps.occupancies),
     idempotencyStore: deps.idempotency,
+    // Sprint 6 — dashboard
+    getDashboardSummary: new GetDashboardSummary(deps.dashboard, deps.clock),
+    getBuildingSummaries: new GetBuildingSummaries(deps.dashboard),
+    getLeaseAlerts: new GetLeaseAlerts(deps.leases, deps.clock),
+    getRecentActivity: new GetRecentActivity(deps.dashboard),
   };
 };
 
@@ -306,6 +325,7 @@ const defaultDependencies = (): AppDependencies => ({
   leases: new SqlLeaseContractRepository(),
   occupancies: new SqlOccupancyRepository(),
   idempotency: new SqlIdempotencyStore(),
+  dashboard: new SqlDashboardRepository(),
 });
 
 let instance: AppContainer | null = null;

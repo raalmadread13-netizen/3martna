@@ -11,6 +11,7 @@ import { ResetPasswordScreen } from '@/presentation/screens/ResetPasswordScreen'
 import { SettingsScreen } from '@/presentation/screens/SettingsScreen';
 import { SplashScreen } from '@/presentation/screens/SplashScreen';
 import { WelcomeScreen } from '@/presentation/screens/WelcomeScreen';
+import { DashboardScreen } from '@/presentation/screens/dashboard/DashboardScreen';
 import { LeaseDetailsScreen } from '@/presentation/screens/occupancy/LeaseDetailsScreen';
 import { LeaseFormScreen } from '@/presentation/screens/occupancy/LeaseFormScreen';
 import { LeasesListScreen } from '@/presentation/screens/occupancy/LeasesListScreen';
@@ -71,6 +72,11 @@ export const RootNavigator = (): React.JSX.Element => {
         {status === 'authenticated' ? (
           <>
             <Stack.Screen name="Home" component={HomeScreen} options={{ title: '3martna' }} />
+            <Stack.Screen
+              name="Dashboard"
+              component={DashboardScreen}
+              options={{ title: 'Dashboard' }}
+            />
             <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
             <Stack.Screen
               name="Settings"

@@ -25,6 +25,8 @@ export type RootStackParamList = {
   Owners: undefined;
   OwnerDetails: { id: string };
   OwnerForm: { owner?: Owner };
+  // Sprint 6 — Admin Dashboard
+  Dashboard: undefined;
   // Sprint 5 — Occupancy Management
   Residents: undefined;
   ResidentDetails: { id: string };
