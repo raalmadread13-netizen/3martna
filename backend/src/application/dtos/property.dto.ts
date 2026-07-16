@@ -142,15 +142,17 @@ export interface UpdateOwnerDto {
 export interface ResidentDto {
   id: string;
   tenantId: string;
-  apartmentId: string;
+  /** Currently occupied apartment — null until the resident moves in. */
+  apartmentId: string | null;
   userId: string | null;
   fullName: string;
   phoneNumber: string;
   email: string | null;
   residencyType: string;
-  moveInDate: string;
+  moveInDate: string | null;
   moveOutDate: string | null;
   isActive: boolean;
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
+  createdAt: string;
 }

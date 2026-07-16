@@ -2,7 +2,7 @@ import { Apartment } from '@domain/business/Apartment';
 import { Building, ParkingSpace, StorageUnit } from '@domain/business/Building';
 import { Owner } from '@domain/business/Owner';
 import { Resident } from '@domain/business/Resident';
-import { PageRequest, PageResult } from '@shared/types';
+import { CursorResult, PageRequest, PageResult, SortDirection } from '@shared/types';
 import { ITenantRepository } from './ITenantRepository';
 
 export interface IBuildingRepository extends ITenantRepository<Building> {
@@ -35,8 +35,23 @@ export interface IOwnerRepository extends ITenantRepository<Owner> {
   listByTenant(tenantId: string, page: PageRequest): Promise<PageResult<Owner>>;
 }
 
+/** Cursor-list query for residents. */
+export interface ResidentListQuery {
+  cursor?: string;
+  limit: number;
+  sortBy: 'fullName' | 'createdAt';
+  sortDir: SortDirection;
+  /** Matches full name, phone number or email (contains). */
+  search?: string;
+  /** active = currently living in an apartment. */
+  status?: 'active' | 'inactive';
+  apartmentId?: string;
+}
+
 export interface IResidentRepository extends ITenantRepository<Resident> {
   /** Currently-living residents of an apartment (MoveOutDate IS NULL). */
   listActiveByApartment(tenantId: string, apartmentId: string): Promise<Resident[]>;
   findByUserId(tenantId: string, userId: string): Promise<Resident | null>;
+  /** Cursor-paged list with search/filter/sort. */
+  listCursor(tenantId: string, query: ResidentListQuery): Promise<CursorResult<Resident>>;
 }

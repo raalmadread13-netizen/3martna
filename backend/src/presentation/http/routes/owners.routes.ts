@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ownersController } from '@presentation/http/controllers/owners.controller';
 import { authenticate, requirePermission, requireTenant } from '@presentation/http/middleware/auth';
+import { idempotency } from '@presentation/http/middleware/idempotency';
 import { validate } from '@presentation/http/middleware/validate';
 import {
   createOwnerSchema,
@@ -59,6 +60,7 @@ ownersRoutes.post(
   '/',
   requirePermission('owners.manage'),
   validate({ body: createOwnerSchema }),
+  idempotency,
   ownersController.create,
 );
 

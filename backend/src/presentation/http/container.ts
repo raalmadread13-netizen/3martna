@@ -3,13 +3,17 @@ import { IRefreshTokenRepository } from '@domain/repositories/IRefreshTokenRepos
 import { IRoleRepository } from '@domain/repositories/IRoleRepository';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
 import { IVerificationCodeRepository } from '@domain/repositories/IVerificationCodeRepository';
+import { ILeaseContractRepository } from '@domain/repositories/business/leasing.repositories';
+import { IOccupancyRepository } from '@domain/repositories/business/occupancy.repositories';
 import {
   IApartmentRepository,
   IBuildingRepository,
   IOwnerRepository,
+  IResidentRepository,
 } from '@domain/repositories/business/property.repositories';
 import { IClock } from '@domain/common/time/IClock';
 import { TokenIssuer } from '@application/auth/TokenIssuer';
+import { IIdempotencyStore } from '@application/interfaces/IIdempotencyStore';
 import { IEmailSender, ISmsSender } from '@application/interfaces/IMessageSenders';
 import { IPasswordHasher } from '@application/interfaces/IPasswordHasher';
 import { ITokenService } from '@application/interfaces/ITokenService';
@@ -44,10 +48,33 @@ import {
   ListOwners,
   UpdateOwner,
 } from '@application/use-cases/property/OwnerUseCases';
+import {
+  CreateLease,
+  GetLease,
+  ListLeases,
+  TerminateLease,
+  UpdateLease,
+} from '@application/use-cases/occupancy/LeaseUseCases';
+import {
+  GetOccupancy,
+  ListOccupancyHistory,
+  MoveIn,
+  MoveOut,
+} from '@application/use-cases/occupancy/OccupancyUseCases';
+import {
+  GetResident,
+  ListResidents,
+  RegisterResident,
+  UpdateResident,
+} from '@application/use-cases/occupancy/ResidentUseCases';
 import { SqlApartmentRepository } from '@infrastructure/database/repositories/SqlApartmentRepository';
 import { SqlAuditLogRepository } from '@infrastructure/database/repositories/SqlAuditLogRepository';
 import { SqlBuildingRepository } from '@infrastructure/database/repositories/SqlBuildingRepository';
+import { SqlIdempotencyStore } from '@infrastructure/database/repositories/SqlIdempotencyStore';
+import { SqlLeaseContractRepository } from '@infrastructure/database/repositories/SqlLeaseContractRepository';
+import { SqlOccupancyRepository } from '@infrastructure/database/repositories/SqlOccupancyRepository';
 import { SqlOwnerRepository } from '@infrastructure/database/repositories/SqlOwnerRepository';
+import { SqlResidentRepository } from '@infrastructure/database/repositories/SqlResidentRepository';
 import { SqlRefreshTokenRepository } from '@infrastructure/database/repositories/SqlRefreshTokenRepository';
 import { SqlRoleRepository } from '@infrastructure/database/repositories/SqlRoleRepository';
 import { SqlUserRepository } from '@infrastructure/database/repositories/SqlUserRepository';
@@ -73,6 +100,10 @@ export interface AppDependencies {
   buildings: IBuildingRepository;
   apartments: IApartmentRepository;
   owners: IOwnerRepository;
+  residents: IResidentRepository;
+  leases: ILeaseContractRepository;
+  occupancies: IOccupancyRepository;
+  idempotency: IIdempotencyStore;
 }
 
 export interface AppContainer {
@@ -104,6 +135,22 @@ export interface AppContainer {
   updateOwner: UpdateOwner;
   getOwner: GetOwner;
   listOwners: ListOwners;
+  // Sprint 5 — Occupancy Management
+  registerResident: RegisterResident;
+  updateResident: UpdateResident;
+  getResident: GetResident;
+  listResidents: ListResidents;
+  createLease: CreateLease;
+  updateLease: UpdateLease;
+  getLease: GetLease;
+  listLeases: ListLeases;
+  terminateLease: TerminateLease;
+  moveIn: MoveIn;
+  moveOut: MoveOut;
+  getOccupancy: GetOccupancy;
+  listOccupancyHistory: ListOccupancyHistory;
+  /** Exposed for the Idempotency-Key middleware. */
+  idempotencyStore: IIdempotencyStore;
 }
 
 /** Composition root: wires use-cases to concrete dependencies. */
@@ -197,6 +244,47 @@ export const buildContainer = (deps: AppDependencies): AppContainer => {
     updateOwner: new UpdateOwner(deps.owners, deps.auditLogs, deps.clock),
     getOwner: new GetOwner(deps.owners),
     listOwners: new ListOwners(deps.owners),
+    // Sprint 5 — occupancy module
+    registerResident: new RegisterResident(deps.residents, deps.auditLogs, deps.clock),
+    updateResident: new UpdateResident(deps.residents, deps.auditLogs, deps.clock),
+    getResident: new GetResident(deps.residents),
+    listResidents: new ListResidents(deps.residents),
+    createLease: new CreateLease(
+      deps.leases,
+      deps.apartments,
+      deps.residents,
+      deps.auditLogs,
+      deps.clock,
+    ),
+    updateLease: new UpdateLease(deps.leases, deps.auditLogs, deps.clock),
+    getLease: new GetLease(deps.leases),
+    listLeases: new ListLeases(deps.leases),
+    terminateLease: new TerminateLease(
+      deps.leases,
+      deps.occupancies,
+      deps.residents,
+      deps.apartments,
+      deps.auditLogs,
+      deps.clock,
+    ),
+    moveIn: new MoveIn(
+      deps.occupancies,
+      deps.leases,
+      deps.residents,
+      deps.apartments,
+      deps.auditLogs,
+      deps.clock,
+    ),
+    moveOut: new MoveOut(
+      deps.occupancies,
+      deps.residents,
+      deps.apartments,
+      deps.auditLogs,
+      deps.clock,
+    ),
+    getOccupancy: new GetOccupancy(deps.occupancies),
+    listOccupancyHistory: new ListOccupancyHistory(deps.occupancies),
+    idempotencyStore: deps.idempotency,
   };
 };
 
@@ -214,6 +302,10 @@ const defaultDependencies = (): AppDependencies => ({
   buildings: new SqlBuildingRepository(),
   apartments: new SqlApartmentRepository(),
   owners: new SqlOwnerRepository(),
+  residents: new SqlResidentRepository(),
+  leases: new SqlLeaseContractRepository(),
+  occupancies: new SqlOccupancyRepository(),
+  idempotency: new SqlIdempotencyStore(),
 });
 
 let instance: AppContainer | null = null;

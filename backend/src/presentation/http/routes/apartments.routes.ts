@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { apartmentsController } from '@presentation/http/controllers/apartments.controller';
 import { authenticate, requirePermission, requireTenant } from '@presentation/http/middleware/auth';
+import { idempotency } from '@presentation/http/middleware/idempotency';
 import { validate } from '@presentation/http/middleware/validate';
 import {
   apartmentListQuerySchema,
@@ -63,6 +64,7 @@ apartmentsRoutes.post(
   '/',
   requirePermission('apartments.manage'),
   validate({ body: createApartmentSchema }),
+  idempotency,
   apartmentsController.create,
 );
 

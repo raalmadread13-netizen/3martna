@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { buildingsController } from '@presentation/http/controllers/buildings.controller';
 import { authenticate, requirePermission, requireTenant } from '@presentation/http/middleware/auth';
+import { idempotency } from '@presentation/http/middleware/idempotency';
 import { validate } from '@presentation/http/middleware/validate';
 import {
   createBuildingSchema,
@@ -65,6 +66,7 @@ buildingsRoutes.post(
   '/',
   requirePermission('buildings.manage'),
   validate({ body: createBuildingSchema }),
+  idempotency,
   buildingsController.create,
 );
 
@@ -172,6 +174,7 @@ buildingsRoutes.post(
   '/:id/floors',
   requirePermission('buildings.manage'),
   validate({ params: idParamsSchema, body: createFloorSchema }),
+  idempotency,
   buildingsController.addFloor,
 );
 

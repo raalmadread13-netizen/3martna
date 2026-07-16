@@ -23,7 +23,15 @@ export type AuditAction =
   | 'APARTMENT_UPDATED'
   | 'APARTMENT_ARCHIVED'
   | 'OWNER_CREATED'
-  | 'OWNER_UPDATED';
+  | 'OWNER_UPDATED'
+  // Sprint 5 — Occupancy Management
+  | 'RESIDENT_REGISTERED'
+  | 'RESIDENT_UPDATED'
+  | 'LEASE_CREATED'
+  | 'LEASE_UPDATED'
+  | 'LEASE_TERMINATED'
+  | 'MOVE_IN'
+  | 'MOVE_OUT';
 
 export interface NewAuditLog {
   userId: string | null;

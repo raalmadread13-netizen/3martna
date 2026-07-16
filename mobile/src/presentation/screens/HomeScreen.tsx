@@ -16,6 +16,9 @@ export const HomeScreen = ({ navigation }: RootScreenProps<'Home'>): React.JSX.E
   const canSeeBuildings = hasPermission(user, 'buildings.read');
   const canSeeApartments = hasPermission(user, 'apartments.read');
   const canSeeOwners = hasPermission(user, 'owners.read');
+  const canSeeResidents = hasPermission(user, 'residents.read');
+  const canSeeLeases = hasPermission(user, 'leases.read');
+  const canSeeOccupancy = hasPermission(user, 'occupancy.read');
 
   return (
     <Screen scroll>
@@ -35,6 +38,15 @@ export const HomeScreen = ({ navigation }: RootScreenProps<'Home'>): React.JSX.E
       ) : null}
       {canSeeOwners ? (
         <AppButton title="Owners" onPress={() => navigation.navigate('Owners')} />
+      ) : null}
+      {canSeeResidents ? (
+        <AppButton title="Residents" onPress={() => navigation.navigate('Residents')} />
+      ) : null}
+      {canSeeLeases ? (
+        <AppButton title="Leases" onPress={() => navigation.navigate('Leases')} />
+      ) : null}
+      {canSeeOccupancy ? (
+        <AppButton title="Occupancy" onPress={() => navigation.navigate('OccupancyHistory')} />
       ) : null}
 
       <AppButton

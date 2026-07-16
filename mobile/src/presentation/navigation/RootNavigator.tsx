@@ -11,6 +11,15 @@ import { ResetPasswordScreen } from '@/presentation/screens/ResetPasswordScreen'
 import { SettingsScreen } from '@/presentation/screens/SettingsScreen';
 import { SplashScreen } from '@/presentation/screens/SplashScreen';
 import { WelcomeScreen } from '@/presentation/screens/WelcomeScreen';
+import { LeaseDetailsScreen } from '@/presentation/screens/occupancy/LeaseDetailsScreen';
+import { LeaseFormScreen } from '@/presentation/screens/occupancy/LeaseFormScreen';
+import { LeasesListScreen } from '@/presentation/screens/occupancy/LeasesListScreen';
+import { MoveInWizardScreen } from '@/presentation/screens/occupancy/MoveInWizardScreen';
+import { MoveOutWizardScreen } from '@/presentation/screens/occupancy/MoveOutWizardScreen';
+import { OccupancyHistoryScreen } from '@/presentation/screens/occupancy/OccupancyHistoryScreen';
+import { ResidentDetailsScreen } from '@/presentation/screens/occupancy/ResidentDetailsScreen';
+import { ResidentFormScreen } from '@/presentation/screens/occupancy/ResidentFormScreen';
+import { ResidentsListScreen } from '@/presentation/screens/occupancy/ResidentsListScreen';
 import { ApartmentDetailsScreen } from '@/presentation/screens/property/ApartmentDetailsScreen';
 import { ApartmentFormScreen } from '@/presentation/screens/property/ApartmentFormScreen';
 import { ApartmentsListScreen } from '@/presentation/screens/property/ApartmentsListScreen';
@@ -112,6 +121,51 @@ export const RootNavigator = (): React.JSX.Element => {
               name="OwnerForm"
               component={OwnerFormScreen}
               options={{ title: 'Owner' }}
+            />
+            <Stack.Screen
+              name="Residents"
+              component={ResidentsListScreen}
+              options={{ title: 'Residents' }}
+            />
+            <Stack.Screen
+              name="ResidentDetails"
+              component={ResidentDetailsScreen}
+              options={{ title: 'Resident' }}
+            />
+            <Stack.Screen
+              name="ResidentForm"
+              component={ResidentFormScreen}
+              options={{ title: 'Resident' }}
+            />
+            <Stack.Screen
+              name="Leases"
+              component={LeasesListScreen}
+              options={{ title: 'Leases' }}
+            />
+            <Stack.Screen
+              name="LeaseDetails"
+              component={LeaseDetailsScreen}
+              options={{ title: 'Lease' }}
+            />
+            <Stack.Screen
+              name="LeaseForm"
+              component={LeaseFormScreen}
+              options={{ title: 'Lease' }}
+            />
+            <Stack.Screen
+              name="MoveInWizard"
+              component={MoveInWizardScreen}
+              options={{ title: 'Move-In' }}
+            />
+            <Stack.Screen
+              name="MoveOutWizard"
+              component={MoveOutWizardScreen}
+              options={{ title: 'Move-Out' }}
+            />
+            <Stack.Screen
+              name="OccupancyHistory"
+              component={OccupancyHistoryScreen}
+              options={{ title: 'Occupancy' }}
             />
           </>
         ) : (

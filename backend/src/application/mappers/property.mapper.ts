@@ -97,10 +97,11 @@ export const toResidentDto = (resident: Resident): ResidentDto => {
     phoneNumber: p.phoneNumber,
     email: p.email,
     residencyType: p.residencyType,
-    moveInDate: isoRequired(p.moveInDate),
+    moveInDate: iso(p.moveInDate),
     moveOutDate: iso(p.moveOutDate),
     isActive: resident.isActive,
     emergencyContactName: p.emergencyContactName,
     emergencyContactPhone: p.emergencyContactPhone,
+    createdAt: isoRequired(p.createdAt),
   };
 };

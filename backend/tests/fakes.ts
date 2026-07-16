@@ -19,6 +19,12 @@ import { AppDependencies } from '@presentation/http/container';
 import { tokenService } from '@infrastructure/security/JwtTokenService';
 import { systemClock } from '@infrastructure/time/SystemClock';
 import {
+  InMemoryIdempotencyStore,
+  InMemoryLeaseContractRepository,
+  InMemoryOccupancyRepository,
+  InMemoryResidentRepository,
+} from './fakes.occupancy';
+import {
   InMemoryApartmentRepository,
   InMemoryBuildingRepository,
   InMemoryOwnerRepository,
@@ -147,6 +153,12 @@ export class InMemoryRoleRepository implements IRoleRepository {
       'apartments.manage',
       'owners.read',
       'owners.manage',
+      'residents.read',
+      'residents.manage',
+      'leases.read',
+      'leases.manage',
+      'occupancy.read',
+      'occupancy.manage',
     ],
     BuildingManager: [
       'profile.manage',
@@ -156,6 +168,12 @@ export class InMemoryRoleRepository implements IRoleRepository {
       'apartments.manage',
       'owners.read',
       'owners.manage',
+      'residents.read',
+      'residents.manage',
+      'leases.read',
+      'leases.manage',
+      'occupancy.read',
+      'occupancy.manage',
     ],
     Resident: ['profile.manage', 'buildings.read', 'apartments.read'],
     MaintenanceEmployee: ['profile.manage'],
@@ -331,6 +349,10 @@ export interface TestWorld {
   buildings: InMemoryBuildingRepository;
   apartments: InMemoryApartmentRepository;
   owners: InMemoryOwnerRepository;
+  residents: InMemoryResidentRepository;
+  leases: InMemoryLeaseContractRepository;
+  occupancies: InMemoryOccupancyRepository;
+  idempotency: InMemoryIdempotencyStore;
 }
 
 export const buildTestWorld = (): TestWorld => {
@@ -344,6 +366,10 @@ export const buildTestWorld = (): TestWorld => {
   const buildings = new InMemoryBuildingRepository();
   const apartments = new InMemoryApartmentRepository();
   const owners = new InMemoryOwnerRepository();
+  const residents = new InMemoryResidentRepository();
+  const leases = new InMemoryLeaseContractRepository();
+  const occupancies = new InMemoryOccupancyRepository();
+  const idempotency = new InMemoryIdempotencyStore();
   return {
     users,
     roles,
@@ -355,6 +381,10 @@ export const buildTestWorld = (): TestWorld => {
     buildings,
     apartments,
     owners,
+    residents,
+    leases,
+    occupancies,
+    idempotency,
     deps: {
       users,
       roles,
@@ -369,6 +399,10 @@ export const buildTestWorld = (): TestWorld => {
       buildings,
       apartments,
       owners,
+      residents,
+      leases,
+      occupancies,
+      idempotency,
     },
   };
 };

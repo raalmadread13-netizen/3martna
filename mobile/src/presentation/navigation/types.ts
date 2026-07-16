@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { Lease, Resident } from '@/domain/entities/Occupancy';
 import type { Apartment, Building, Owner } from '@/domain/entities/Property';
 
 /** Route params for the root stack. Extended per feature sprint. */
@@ -24,6 +25,16 @@ export type RootStackParamList = {
   Owners: undefined;
   OwnerDetails: { id: string };
   OwnerForm: { owner?: Owner };
+  // Sprint 5 — Occupancy Management
+  Residents: undefined;
+  ResidentDetails: { id: string };
+  ResidentForm: { resident?: Resident };
+  Leases: undefined;
+  LeaseDetails: { id: string };
+  LeaseForm: { lease?: Lease; residentId?: string };
+  MoveInWizard: { leaseId?: string };
+  MoveOutWizard: { occupancyId?: string };
+  OccupancyHistory: { apartmentId?: string; residentId?: string } | undefined;
 };
 
 export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<
