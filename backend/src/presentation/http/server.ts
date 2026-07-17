@@ -3,10 +3,13 @@ import { closePool, getPool, isDatabaseConfigured } from '@infrastructure/databa
 import { logger } from '@infrastructure/logging/logger';
 import { env } from '@shared/config/env';
 import { createApp } from './app';
+import { initDemoData } from './container';
 
 const start = async (): Promise<void> => {
   try {
-    if (isDatabaseConfigured()) {
+    if (env.demoMode) {
+      await initDemoData(); // in-memory repositories, no SQL Server needed
+    } else if (isDatabaseConfigured()) {
       await getPool();
     } else {
       logger.warn('DB_HOST empty — starting without a database connection');

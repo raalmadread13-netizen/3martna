@@ -76,6 +76,7 @@ import {
 } from '@application/use-cases/dashboard/DashboardUseCases';
 import { SqlApartmentRepository } from '@infrastructure/database/repositories/SqlApartmentRepository';
 import { SqlAuditLogRepository } from '@infrastructure/database/repositories/SqlAuditLogRepository';
+import { buildDemoRepositories, DemoRepositories, seedDemoData } from '@infrastructure/memory/demo';
 import { SqlBuildingRepository } from '@infrastructure/database/repositories/SqlBuildingRepository';
 import { SqlDashboardRepository } from '@infrastructure/database/repositories/SqlDashboardRepository';
 import { SqlIdempotencyStore } from '@infrastructure/database/repositories/SqlIdempotencyStore';
@@ -307,32 +308,55 @@ export const buildContainer = (deps: AppDependencies): AppContainer => {
   };
 };
 
-const defaultDependencies = (): AppDependencies => ({
-  users: new SqlUserRepository(),
-  roles: new SqlRoleRepository(),
-  refreshTokens: new SqlRefreshTokenRepository(),
-  verificationCodes: new SqlVerificationCodeRepository(),
-  auditLogs: new SqlAuditLogRepository(),
-  email: new ConsoleEmailSender(),
-  sms: new ConsoleSmsSender(),
-  hasher: passwordHasher,
-  tokens: tokenService,
-  clock: systemClock,
-  buildings: new SqlBuildingRepository(),
-  apartments: new SqlApartmentRepository(),
-  owners: new SqlOwnerRepository(),
-  residents: new SqlResidentRepository(),
-  leases: new SqlLeaseContractRepository(),
-  occupancies: new SqlOccupancyRepository(),
-  idempotency: new SqlIdempotencyStore(),
-  dashboard: new SqlDashboardRepository(),
-});
+let demoRepos: DemoRepositories | null = null;
+
+const defaultDependencies = (): AppDependencies => {
+  if (env.demoMode) {
+    // DEMO mode: in-memory persistence, everything else is the real stack
+    demoRepos = buildDemoRepositories();
+    return {
+      ...demoRepos,
+      email: new ConsoleEmailSender(),
+      sms: new ConsoleSmsSender(),
+      hasher: passwordHasher,
+      tokens: tokenService,
+      clock: systemClock,
+    };
+  }
+  return {
+    users: new SqlUserRepository(),
+    roles: new SqlRoleRepository(),
+    refreshTokens: new SqlRefreshTokenRepository(),
+    verificationCodes: new SqlVerificationCodeRepository(),
+    auditLogs: new SqlAuditLogRepository(),
+    email: new ConsoleEmailSender(),
+    sms: new ConsoleSmsSender(),
+    hasher: passwordHasher,
+    tokens: tokenService,
+    clock: systemClock,
+    buildings: new SqlBuildingRepository(),
+    apartments: new SqlApartmentRepository(),
+    owners: new SqlOwnerRepository(),
+    residents: new SqlResidentRepository(),
+    leases: new SqlLeaseContractRepository(),
+    occupancies: new SqlOccupancyRepository(),
+    idempotency: new SqlIdempotencyStore(),
+    dashboard: new SqlDashboardRepository(),
+  };
+};
 
 let instance: AppContainer | null = null;
 
 export const getContainer = (): AppContainer => {
   instance ??= buildContainer(defaultDependencies());
   return instance;
+};
+
+/** DEMO mode bootstrap: seeds accounts + sample portfolio before listen. */
+export const initDemoData = async (): Promise<void> => {
+  if (!env.demoMode) return;
+  getContainer(); // materialize the in-memory dependencies
+  if (demoRepos) await seedDemoData(demoRepos);
 };
 
 /** Test seam: inject a container built on in-memory fakes. */

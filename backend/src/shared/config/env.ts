@@ -27,6 +27,12 @@ export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   isProduction: process.env.NODE_ENV === 'production',
   isTest: process.env.NODE_ENV === 'test',
+  /**
+   * DEMO mode (Sprint 6.5): the API runs entirely on in-memory
+   * repositories pre-seeded with demo data — no SQL Server required.
+   * Never allowed in production.
+   */
+  demoMode: process.env.DEMO_MODE === 'true' && process.env.NODE_ENV !== 'production',
   port: toNumber('PORT', 4000),
   apiPrefix: process.env.API_PREFIX ?? '/api/v1',
   corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
