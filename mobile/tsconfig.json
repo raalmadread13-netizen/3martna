@@ -7,9 +7,8 @@
     "noUnusedLocals": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["App.tsx", "src/**/*.ts", "src/**/*.tsx"]
